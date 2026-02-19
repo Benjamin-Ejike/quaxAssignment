@@ -9,46 +9,118 @@ import javafx.stage.Stage;
 
 public class QuaxUI extends Application {
 
+    static final int ROWS = 11;
+    static final int COLS = 11;
+
     @Override
     public void start(Stage stage) {
-        Canvas canvas = new Canvas(700, 700);
+
+        Canvas canvas = new Canvas(1000, 950);
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
-        // Draw empty board
-        gc.setFill(Color.LIGHTGRAY);
-        gc.fillRect(0, 0, 700, 700);
+        // Background
+        gc.setFill(Color.WHITE);
+        gc.fillRect(0, 0, 1000, 950);
 
-        // Draw grid
-        gc.setStroke(Color.BLACK);
-        for (int i = 0; i <= 11; i++) {
-            gc.strokeLine(70 + i * 40, 70, 70 + i * 40, 70 + 11 * 40);
-            gc.strokeLine(70, 70 + i * 40, 70 + 11 * 40, 70 + i * 40);
+        // ===== Board geometry =====
+        double startX = 200;
+        double startY = 150;
+
+        double size = 26;   // base square half-size
+        double cut  = size * 0.42;  // corner cut (45°)
+
+        double cellW = size * 2;
+        double cellH = size * 2;
+
+        double stepX = cellW;
+        double stepY = cellH;
+
+        // ===== Draw board =====
+        for (int row = 0; row < ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+
+                double cx = startX + col * stepX;
+                double cy = startY + row * stepY;
+
+                drawOctagon(gc, cx, cy, size, cut);
+            }
         }
 
-        // Draw labels
-        gc.setFont(Font.font(16));
-        for (int i = 0; i < 11; i++) {
-            // A-K on top/bottom
-            gc.fillText(String.valueOf((char)('A' + i)), 70 + i * 40 + 15, 50);
-            gc.fillText(String.valueOf((char)('A' + i)), 70 + i * 40 + 15, 70 + 11 * 40 + 25);
-
-            // 1-11 on left/right
-            gc.fillText(String.valueOf(i + 1), 40, 70 + i * 40 + 15);
-            gc.fillText(String.valueOf(i + 1), 70 + 11 * 40 + 10, 70 + i * 40 + 15);
-        }
-
-        // Draw turn indicator
+        // ===== Labels =====
         gc.setFill(Color.BLACK);
-        gc.fillText("⚫ BLACK to play", 300, 650);
+        gc.setFont(Font.font(16));
 
-        // Title
-        gc.setFont(Font.font(24));
-        gc.fillText("QUAX", 300, 30);
+        // A–K top
+        for (int i = 0; i < 11; i++) {
+            char letter = (char) ('A' + i);
+            double x = startX + i * stepX - 6;
+            double y = startY - 35;
+            gc.fillText(String.valueOf(letter), x, y);
+        }
+
+        // A–K bottom
+        for (int i = 0; i < 11; i++) {
+            char letter = (char) ('A' + i);
+            double x = startX + i * stepX - 6;
+            double y = startY + (ROWS - 1) * stepY + 55;
+            gc.fillText(String.valueOf(letter), x, y);
+        }
+
+        // 1–11 left
+        for (int i = 0; i < 11; i++) {
+            int num = 11 - i;
+            double x = startX - 60;
+            double y = startY + i * stepY + 6;
+            gc.fillText(String.valueOf(num), x, y);
+        }
+
+        // 1–11 right
+        for (int i = 0; i < 11; i++) {
+            int num = 11 - i;
+            double x = startX + (COLS - 1) * stepX + 55;
+            double y = startY + i * stepY + 6;
+            gc.fillText(String.valueOf(num), x, y);
+        }
+
+        // ===== Title =====
+        gc.setFont(Font.font(28));
+        gc.fillText("QUAX", 470, 80);
+
+        // ===== Turn indicator =====
+        gc.setFont(Font.font(20));
+        gc.fillText("BLACK to play", 440, 900);
 
         BorderPane root = new BorderPane(canvas);
         stage.setTitle("Quax Game");
         stage.setScene(new Scene(root));
         stage.show();
+    }
+
+    // ===== True regular octagon (flat sides) =====
+    private void drawOctagon(GraphicsContext gc, double cx, double cy, double s, double c) {
+
+        double[] x = {
+                cx - s + c, cx + s - c,
+                cx + s,     cx + s,
+                cx + s - c, cx - s + c,
+                cx - s,     cx - s
+        };
+
+        double[] y = {
+                cy - s,     cy - s,
+                cy - s + c, cy + s - c,
+                cy + s,     cy + s,
+                cy + s - c, cy - s + c
+        };
+
+        // fill
+        gc.setFill(Color.ORANGE);
+        gc.fillPolygon(x, y, 8);
+
+        // border
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1);
+        gc.strokePolygon(x, y, 8);
     }
 
     public static void main(String[] args) {
