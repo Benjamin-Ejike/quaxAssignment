@@ -13,7 +13,7 @@ public class QuaxUI extends Application {
     static final int ROWS = 11;
     static final int COLS = 11;
 
-    private final Game game = new Game();
+    private final git btGame game = new Game();
 
     // UI state
     private boolean pieRuleAvailable = false;
