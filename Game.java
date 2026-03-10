@@ -13,7 +13,7 @@ public class Game {
 
     public void startGame() {
         board = new Board();
-        currentPlayer = Colour.BLACK;   // BLACK always starts
+        currentPlayer = Colour.BLACK; // BLACK starts
         moveCount = 0;
         pieRuleUsed = false;
     }
@@ -34,7 +34,7 @@ public class Game {
         }
     }
 
-    // Place stone in octagonal cell
+    // Place stone
     public boolean placeStone(int row, int col) {
 
         if (!board.isValidPosition(row, col)) {
@@ -44,7 +44,7 @@ public class Game {
         Cell cell = board.getCell(row, col);
 
         if (!cell.isEmpty()) {
-            return false; // illegal move (already occupied)
+            return false;
         }
 
         cell.setColour(currentPlayer);
@@ -56,24 +56,17 @@ public class Game {
         return true;
     }
 
-    // Apply the Pie Rule
+    // Apply Pie Rule
     public void applyPieRule() {
 
-        // Pie rule only allowed after the first move
         if (moveCount == 1 && !pieRuleUsed) {
 
-            // Swap players
-            if (currentPlayer == Colour.WHITE) {
-                currentPlayer = Colour.BLACK;
-            } else {
-                currentPlayer = Colour.WHITE;
-            }
+            switchTurn();
 
             pieRuleUsed = true;
         }
     }
 
-    // Helper methods (useful for UI)
     public boolean isFirstMove() {
         return moveCount == 1;
     }
@@ -81,5 +74,4 @@ public class Game {
     public boolean isPieRuleUsed() {
         return pieRuleUsed;
     }
-
 }
