@@ -70,7 +70,7 @@ public class QuaxUI extends Application {
             double my = e.getY();
 
             // ── Block all input during bot's turn ─────────────────────────────
-            if (game.getCurrentPlayer() == Colour.WHITE) return;
+          //  if (game.getCurrentPlayer() == Colour.WHITE) return;
 
             // ── Pie rule button hit-tests (top-right corner) ──────────────────
             if (pieRuleAvailable && !pieRuleHandled) {
@@ -113,6 +113,7 @@ public class QuaxUI extends Application {
                     if (Math.abs(mx - rx) + Math.abs(my - ry) <= rhombRadius) {
                         if (rhombicStones[r][c] == null) {
                             rhombicStones[r][c] = game.getCurrentPlayer();
+                            game.switchTurn();
                             errorMessage = "";
                         } else {
                             errorMessage = "Illegal move: Tile already occupied";
