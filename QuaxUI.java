@@ -13,7 +13,7 @@ public class QuaxUI extends Application {
     static final int ROWS = 11;
     static final int COLS = 11;
 
-    private final git btGame game = new Game();
+    private final Game game = new Game();
 
     // UI state
     private boolean pieRuleAvailable = false;
@@ -70,7 +70,6 @@ public class QuaxUI extends Application {
             double my = e.getY();
 
             // ── Block all input during bot's turn ─────────────────────────────
-            //comment this out when testing
             if (game.getCurrentPlayer() == Colour.WHITE) return;
 
             // ── Pie rule button hit-tests (top-right corner) ──────────────────
@@ -114,6 +113,7 @@ public class QuaxUI extends Application {
                     if (Math.abs(mx - rx) + Math.abs(my - ry) <= rhombRadius) {
                         if (rhombicStones[r][c] == null) {
                             rhombicStones[r][c] = game.getCurrentPlayer();
+                            game.switchTurn();
                             errorMessage = "";
                         } else {
                             errorMessage = "Illegal move: Tile already occupied";
@@ -323,45 +323,71 @@ public class QuaxUI extends Application {
 
     // ================= SHAPES =================
 
-    private void drawOctagon(GraphicsContext gc, double cx, double cy, double s, double c) {
-        double[] x = {
-                cx - s + c, cx + s - c,
-                cx + s,     cx + s,
-                cx + s - c, cx - s + c,
-                cx - s,     cx - s
+    private void drawOctagon(GraphicsContext gc, double cx, double cy, double size, double cornerCut) {
+
+        // 8 vertices clockwise from top-left of top edge
+        // cx, cy is the centre of the cell
+        double[] xPoints = {
+                cx - size + cornerCut,   // 0: top-left of top flat
+                cx + size - cornerCut,   // 1: top-right of top flat
+                cx + size,               // 2: top of right flat
+                cx + size,               // 3: bottom of right flat
+                cx + size - cornerCut,   // 4: bottom-right of bottom flat
+                cx - size + cornerCut,   // 5: bottom-left of bottom flat
+                cx - size,               // 6: bottom of left flat
+                cx - size                // 7: top of left flat
         };
-        double[] y = {
-                cy - s,     cy - s,
-                cy - s + c, cy + s - c,
-                cy + s,     cy + s,
-                cy + s - c, cy - s + c
+
+        double[] yPoints = {
+                cy - size,               // 0: top-left of top flat
+                cy - size,               // 1: top-right of top flat
+                cy - size + cornerCut,   // 2: top of right flat
+                cy + size - cornerCut,   // 3: bottom of right flat
+                cy + size,               // 4: bottom-right of bottom flat
+                cy + size,               // 5: bottom-left of bottom flat
+                cy + size - cornerCut,   // 6: bottom of left flat
+                cy - size + cornerCut    // 7: top of left flat
         };
+
+        // fill with board colour
         gc.setFill(Color.ORANGE);
-        gc.fillPolygon(x, y, 8);
+        gc.fillPolygon(xPoints, yPoints, 8);
+
+        // draw outline
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1);
-        gc.strokePolygon(x, y, 8);
+        gc.strokePolygon(xPoints, yPoints, 8);
     }
+
+
 
     private void drawStone(GraphicsContext gc, double cx, double cy, Colour colour) {
-        double r = 13;
+
+        // stone radius fits inside octagon
+        double radius = 13;
+
+        // fill stone
         gc.setFill(colour == Colour.BLACK ? Color.BLACK : Color.WHITE);
-        gc.fillOval(cx - r, cy - r, r * 2, r * 2);
+        gc.fillOval(cx - radius, cy - radius, radius * 2, radius * 2);
+
+        // draw outline
         gc.setStroke(Color.BLACK);
-        gc.strokeOval(cx - r, cy - r, r * 2, r * 2);
+        gc.strokeOval(cx - radius, cy - radius, radius * 2, radius * 2);
     }
 
-    private void drawRhombicStone(GraphicsContext gc, double cx, double cy,
-                                  Colour colour, double cut) {
-        // Fit the circle inside the diamond gap whose half-diagonal is `cut`.
-        // The inscribed circle radius of a square rotated 45° with half-diagonal
-        // `cut` is cut / sqrt(2), but we scale down slightly to leave a border.
-        double r = cut * 0.55;
+    private void drawRhombicStone(GraphicsContext gc, double cx, double cy, Colour colour, double cut) {
+
+        // circle fits snugly inside the diamond gap
+        double radius = cut * 0.55;
+
+        // fill stone
         gc.setFill(colour == Colour.BLACK ? Color.BLACK : Color.WHITE);
-        gc.fillOval(cx - r, cy - r, r * 2, r * 2);
+        gc.fillOval(cx - radius, cy - radius, radius * 2, radius * 2);
+
+        // draw outline
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.2);
-        gc.strokeOval(cx - r, cy - r, r * 2, r * 2);
+        gc.strokeOval(cx - radius, cy - radius, radius * 2, radius * 2);
     }
 
     public static void main(String[] args) {

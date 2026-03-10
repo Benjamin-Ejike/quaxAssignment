@@ -44,5 +44,13 @@ public class Game {
     public Board getBoard() {
         return board;
     }
-}
 
+    public void applyPieRule() {
+        // Swap current player colour
+        if (currentPlayer == Colour.BLACK) {
+            currentPlayer = Colour.WHITE;
+        } else {
+            currentPlayer = Colour.BLACK;
+        }
+    }
+}

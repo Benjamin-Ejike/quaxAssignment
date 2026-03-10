@@ -1,5 +1,3 @@
-import java.awt.*;
-
 //represents one octagonal tile
 public class Cell {
     private int row;
