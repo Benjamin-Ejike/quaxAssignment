@@ -124,6 +124,8 @@ public class QuaxUI extends Application {
                 }
             }
             if (clickedRhomb) return;
+            
+            game.setRhombicStones(rhombicStones);
 
             // ── Octagon cell click ────────────────────────────────────────────
             int col = (int) ((mx - startX) / stepX);
