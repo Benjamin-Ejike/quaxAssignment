@@ -1,7 +1,13 @@
+import java.util.ArrayList;
+import java.util.List;
+
 public class Game {
 
     private Board board;
     private Colour currentPlayer;
+
+    // Field to store the winning path for the UI glow
+    private List<int[]> winningPath = new ArrayList<>();
 
     public Game() {
         startGame();
@@ -45,12 +51,14 @@ public class Game {
         if (currentPlayer == Colour.BLACK && blackWins()) {
             gameOver = true;
             winner = Colour.BLACK;
+            calculateWinningPath(); // SPRINT 4: Find the path after win detected
             return true;
         }
 
         if (currentPlayer == Colour.WHITE && whiteWins()) {
             gameOver = true;
             winner = Colour.WHITE;
+            calculateWinningPath(); // SPRINT 4: Find the path after win detected
             return true;
         }
 
@@ -58,12 +66,12 @@ public class Game {
         switchTurn();
         return true;
     }
-    
-    
+
+
     // helper method
     private boolean hasMatchingRhombusBetween(int row1, int col1, int row2, int col2, Colour colour) {
-        
-    	if (Math.abs(row1 - row2) != 1 || Math.abs(col1 - col2) != 1) {
+
+        if (Math.abs(row1 - row2) != 1 || Math.abs(col1 - col2) != 1) {
             return false;
         }
 
@@ -75,14 +83,14 @@ public class Game {
         Colour rhomb = rhombicStones[r][c];
         return rhomb != null && rhomb == colour;
     }
-    
+
     // win conditions
- // check if black has made a full connection from the top row to the bottom row
+    // check if black has made a full connection from the top row to the bottom row
     public boolean blackWins() {
         int size = board.getSize();
 
         // keeps track of which cells we have already checked
-        // so we do not keep visiting the same cells again 
+        // so we do not keep visiting the same cells again
         boolean[][] visited = new boolean[size][size];
 
         // black wins by connecting top to bottom
@@ -118,10 +126,10 @@ public class Game {
         // these are the normal orthogonal directions
         // black & white can always connect through these if the stone next to it is the same colour
         int[][] orthogonalDirections = {
-            {-1, 0}, // up
-            {1, 0},  // down
-            {0, -1}, // left
-            {0, 1}   // right
+                {-1, 0}, // up
+                {1, 0},  // down
+                {0, -1}, // left
+                {0, 1}   // right
         };
 
         // first checks all orthogonal neighbours
@@ -149,10 +157,10 @@ public class Game {
         // checking diagonal neighbours
         // diagonal movement is only allowed if there is a matching black rhombic tile between the two cells
         int[][] diagonalDirections = {
-            {-1, -1}, // up left
-            {-1, 1},  // up right
-            {1, -1},  // down left
-            {1, 1}    // down right
+                {-1, -1}, // up left
+                {-1, 1},  // up right
+                {1, -1},  // down left
+                {1, 1}    // down right
         };
 
         for (int[] d : diagonalDirections) {
@@ -183,7 +191,7 @@ public class Game {
         // if no orthogonal or diagonal route reaches the bottom row then this path does not win
         return false;
     }
-    
+
     // checking if white has done a full connection from the left column to the right column
     public boolean whiteWins() {
         int size = board.getSize();
@@ -223,10 +231,10 @@ public class Game {
 
         // these are the standard orthogonal directions
         int[][] orthogonalDirections = {
-            {-1, 0}, // up
-            {1, 0},  // down
-            {0, -1}, // left
-            {0, 1}   // right
+                {-1, 0}, // up
+                {1, 0},  // down
+                {0, -1}, // left
+                {0, 1}   // right
         };
 
         // first check all orthogonal neighbours
@@ -254,10 +262,10 @@ public class Game {
         // check diagonal neighbours
         // diagonal movement is only allowed when there is a matching white rhombic tile between the two cells
         int[][] diagonalDirections = {
-            {-1, -1}, // up left
-            {-1, 1},  // up right
-            {1, -1},  // down left
-            {1, 1}    // down right
+                {-1, -1}, // up left
+                {-1, 1},  // up right
+                {1, -1},  // down left
+                {1, 1}    // down right
         };
 
         for (int[] d : diagonalDirections) {
@@ -288,14 +296,14 @@ public class Game {
         // if no route reaches the right side then white has not won through this path
         return false;
     }
-    
- // store reference to rhombic tiles from ui temporarily
+
+    // store reference to rhombic tiles from ui temporarily
     private Colour[][] rhombicStones;
 
     public void setRhombicStones(Colour[][] rhombicStones) {
         this.rhombicStones = rhombicStones;
     }
-    
+
     public boolean placeRhombus(int row, int col) {
 
         // stop rhombic placement after the game is over
@@ -325,26 +333,28 @@ public class Game {
         if (currentPlayer == Colour.BLACK && blackWins()) {
             gameOver = true;
             winner = Colour.BLACK;
+            calculateWinningPath(); // SPRINT 4 addition
             return true;
         }
 
         if (currentPlayer == Colour.WHITE && whiteWins()) {
             gameOver = true;
             winner = Colour.WHITE;
+            calculateWinningPath(); // SPRINT 4 addition
             return true;
         }
 
         switchTurn();
         return true;
     }
-    
- // tracks whether the game has ended
+
+    // tracks whether the game has ended
     private boolean gameOver = false;
 
     // stores the winner when the game ends
     private Colour winner = null;
-    
- // returns true if the game is finished
+
+    // returns true if the game is finished
     public boolean isGameOver() {
         return gameOver;
     }
@@ -357,4 +367,128 @@ public class Game {
     public Board getBoard() {
         return board;
     }
+
+
+
+    // Finds the largest number of connected stones (longest chain) for a specific player
+    public int getLongestChain(Colour col) {
+        int max = 0; // Stores the size of the biggest chain found so far
+        int size = board.getSize();
+        boolean[][] visited = new boolean[size][size]; // Tracks which cells we've already counted
+
+        // Scan every cell on the board
+        for (int r = 0; r < size; r++) {
+            for (int c = 0; c < size; c++) {
+                // If we find an unvisited stone belonging to the requested colour
+                if (!visited[r][c] && board.getCell(r, c).getColor() == col) {
+                    // Count its entire connected group and update 'max' if it's the biggest one yet
+                    max = Math.max(max, countChainRecursive(r, c, col, visited));
+                }
+            }
+        }
+        return max; // Return the size of the longest chain found
+    }
+
+
+    // Recursively explores and counts all connected stones in a single group
+
+    private int countChainRecursive(int r, int c, Colour col, boolean[][] visited) {
+        visited[r][c] = true; // Mark current stone as visited so we don't count it twice
+        int count = 1;        // Start the count at 1 (for the current stone itself)
+
+        // Directions to check: 4 straight (up/down/left/right) and 4 diagonal
+        int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
+
+        for (int[] d : dirs) {
+            int nr = r + d[0], nc = c + d[1]; // Calculate the neighbour's coordinates
+
+            // Check if the neighbour is on the board, hasn't been visited, and matches our colour
+            if (nr >= 0 && nr < 11 && nc >= 0 && nc < 11 && !visited[nr][nc] && board.getCell(nr, nc).getColor() == col) {
+
+                // If moving diagonally (both row and col change by 1)
+                if (Math.abs(d[0]) == 1 && Math.abs(d[1]) == 1) {
+                    // Only count it if there is a matching rhombic tile connecting them
+                    if (hasMatchingRhombusBetween(r, c, nr, nc, col)) {
+                        count += countChainRecursive(nr, nc, col, visited);
+                    }
+                } else {
+                    // Straight moves are always connected, no rhombic tile needed
+                    count += countChainRecursive(nr, nc, col, visited);
+                }
+            }
+        }
+        return count; // Return the total number of connected stones in this chain
+    }
+
+
+    // Determines the winning player and triggers the search to highlight their winning path
+    private void calculateWinningPath() {
+        winningPath.clear(); // Clear out any old path data
+        int size = board.getSize();
+
+        if (winner == Colour.BLACK) {
+            // Black wins by connecting top to bottom.
+            // Start searching from every black stone in the top row (row 0)
+            for (int c = 0; c < size; c++) {
+                if (board.getCell(0, c).getColor() == Colour.BLACK) {
+                    // If we successfully trace a path to the bottom, stop searching
+                    if (findPathTrace(0, c, Colour.BLACK, true, new boolean[size][size])) break;
+                }
+            }
+        } else if (winner == Colour.WHITE) {
+            // White wins by connecting left to right.
+            // Start searching from every white stone in the left column (col 0)
+            for (int r = 0; r < size; r++) {
+                if (board.getCell(r, 0).getColor() == Colour.WHITE) {
+                    // If we successfully trace a path to the right side, stop searching
+                    if (findPathTrace(r, 0, Colour.WHITE, false, new boolean[size][size])) break;
+                }
+            }
+        }
+    }
+
+
+    // Traces the exact steps of the winning connection, backing up (backtracking) if it hits a dead end
+    private boolean findPathTrace(int r, int c, Colour col, boolean isBlack, boolean[][] v) {
+        v[r][c] = true; // Mark this stone as visited during our search
+        winningPath.add(new int[]{r, c}); // Temporarily add this stone to our winning path sequence
+
+        // Base case: Did we reach the opposite side of the board?
+        // Black looks for the bottom row; White looks for the rightmost column.
+        if ((isBlack && r == board.getSize() - 1) || (!isBlack && c == board.getSize() - 1)) {
+            return true; // We found the finish line! Keep the path.
+        }
+
+        // Try moving to all 8 surrounding neighbours
+        int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
+        for (int[] d : dirs) {
+            int nr = r + d[0], nc = c + d[1]; // Neighbour coordinates
+
+            // If neighbour is on the board, unvisited, and is the correct colour
+            if (nr >= 0 && nr < 11 && nc >= 0 && nc < 11 && !v[nr][nc] && board.getCell(nr, nc).getColor() == col) {
+
+                // If it's a straight move, OR if it's diagonal WITH a matching rhombus tile connecting them:
+                if (Math.abs(d[0]) != 1 || Math.abs(d[1]) != 1 || hasMatchingRhombusBetween(r, c, nr, nc, col)) {
+
+                    // Recursively move forward. If it eventually reaches the end, return true.
+                    if (findPathTrace(nr, nc, col, isBlack, v)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Dead End: We explored all options from this stone and didn't reach the end.
+        // Remove this stone from the path list (backtrack) and return false.
+        winningPath.remove(winningPath.size() - 1);
+        return false;
+    }
+
+
+    //Identifies winning path and gives neon winning glow
+    public List<int[]> getWinningPath() {
+        return winningPath;
+    }
+
+
 }
