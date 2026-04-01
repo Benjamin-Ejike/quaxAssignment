@@ -1,3 +1,4 @@
+import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -7,6 +8,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javafx.util.Duration;
+import java.util.List;
 
 public class QuaxUI extends Application {
 
@@ -20,6 +23,13 @@ public class QuaxUI extends Application {
     private boolean pieRuleHandled = false;
     private boolean firstMoveDone = false;
     private String errorMessage = "";
+
+    // SPRINT 4 NEW STATE: Bot logic and Path Analysis
+    private boolean isBotThinking = false;
+    private String connectionMessage = "Chains -> BLACK: 0 | WHITE: 0";
+    private int lastMoveRow = -1;
+    private int lastMoveCol = -1;
+    private boolean lastMoveIsRhombic = false;
 
     // Rhombic cell stones – [row][col] where row,col in [0..9]
     // Each entry is the colour placed, or null if empty.
@@ -70,7 +80,8 @@ public class QuaxUI extends Application {
             double my = e.getY();
 
             // ── Block all input during bot's turn ─────────────────────────────
-          //  if (game.getCurrentPlayer() == Colour.WHITE) return;
+            // SPRINT 4: Disable clicks if Bot is moving or game ended
+            if (isBotThinking || game.isGameOver()) return;
 
             // ── Pie rule button hit-tests (top-right corner) ──────────────────
             if (pieRuleAvailable && !pieRuleHandled) {
@@ -78,7 +89,8 @@ public class QuaxUI extends Application {
                 // SWAP button
                 if (mx >= PIE_SWAP_X && mx <= PIE_SWAP_X + PIE_SWAP_W
                         && my >= PIE_SWAP_Y && my <= PIE_SWAP_Y + PIE_SWAP_H) {
-                    swapColours();
+                    game.getBoard().swapAllColours(); // logic: swap existing stones
+                    game.switchTurn();
                     pieRuleHandled   = true;
                     pieRuleAvailable = false;
                     errorMessage     = "";
@@ -111,10 +123,11 @@ public class QuaxUI extends Application {
                     double ry = startY + (r + 1) * stepY;
                     // Diamond (L1) hit-test: |dx|+|dy| <= radius
                     if (Math.abs(mx - rx) + Math.abs(my - ry) <= rhombRadius) {
-                        if (rhombicStones[r][c] == null) {
-                            rhombicStones[r][c] = game.getCurrentPlayer();
-                            game.switchTurn();
-                            errorMessage = "";
+                        if (game.placeRhombus(r, c)) { // Use logic method
+                            // Sprint 4: Dismiss Pie Rule if player makes a move
+                            if (pieRuleAvailable) { pieRuleAvailable = false; pieRuleHandled = true; }
+                            recordMove(r, c, true);
+                            handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
                         } else {
                             errorMessage = "Illegal move: Tile already occupied";
                         }
@@ -124,7 +137,7 @@ public class QuaxUI extends Application {
                 }
             }
             if (clickedRhomb) return;
-            
+
             game.setRhombicStones(rhombicStones);
 
             // ── Octagon cell click ────────────────────────────────────────────
@@ -139,13 +152,19 @@ public class QuaxUI extends Application {
                 errorMessage = "Illegal move: Tile already occupied";
             } else {
                 errorMessage = "";
+                recordMove(row, col, false);
 
                 // After BLACK's first move the turn switches to WHITE –
                 // offer the pie rule to WHITE exactly once.
-                if (!firstMoveDone && game.getCurrentPlayer() == Colour.WHITE) {
+                if (!firstMoveDone) {
                     firstMoveDone    = true;
                     pieRuleAvailable = true;
+                } else {
+                    // Sprint 4: Rule must disappear after move 2
+                    pieRuleAvailable = false;
+                    pieRuleHandled = true;
                 }
+                handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
             }
 
             drawUI(gc, startX, startY, size, cut, stepX, stepY);
@@ -159,10 +178,113 @@ public class QuaxUI extends Application {
         drawUI(gc, startX, startY, size, cut, stepX, stepY);
     }
 
-    // ================= UI LOGIC =================
 
-    private void swapColours() {
-        // simple swap for UI test mode
+
+
+    // Saves the details of the most recent move so we can highlight it on the board
+    private void recordMove(int r, int c, boolean isRhombic) {
+        lastMoveRow = r;
+        lastMoveCol = c;
+        lastMoveIsRhombic = isRhombic;
+
+        // Clear any previous error messages since a valid move was just made
+        errorMessage = "";
+    }
+
+
+    // Called after every move to update the UI and pass the turn to the bot if needed
+    private void handleTurnEnd(GraphicsContext gc, double sx, double sy, double s, double c, double tx, double ty) {
+        // Calculate the longest connected chains for both players
+        int b = game.getLongestChain(Colour.BLACK);
+        int w = game.getLongestChain(Colour.WHITE);
+
+        // Update the text displayed at the bottom of the screen
+        this.connectionMessage = String.format("Chains -> BLACK: %d | WHITE: %d", b, w);
+
+        // Redraw the board to show the new stone and updated text
+        drawUI(gc, sx, sy, s, c, tx, ty);
+
+        // If the game isn't over and it is now White's turn, trigger the bot
+        if (!game.isGameOver() && game.getCurrentPlayer() == Colour.WHITE) {
+            triggerBotMove(gc, sx, sy, s, c, tx, ty);
+        }
+    }
+
+
+    // Creates a short delay before the bot moves so it looks like it's "thinking"
+    private void triggerBotMove(GraphicsContext gc, double sx, double sy, double s, double c, double tx, double ty) {
+        // Set to true so the user can't click the board while the bot takes its turn
+        isBotThinking = true;
+
+        // Redraw immediately to show the "Bot is thinking..." message
+        drawUI(gc, sx, sy, s, c, tx, ty);
+
+        // Create a 0.8-second timer
+        PauseTransition pause = new PauseTransition(Duration.seconds(0.8));
+        pause.setOnFinished(event -> {
+
+            // Once the timer finishes, actually place the bot's stone
+            makeBotMove();
+            isBotThinking = false; // The bot is done, unlock the board for the human
+
+            // If the pie rule was available but the bot just moved, the pie rule expires
+            if (pieRuleAvailable) {
+                pieRuleAvailable = false;
+                pieRuleHandled = true;
+            }
+
+            // End the bot's turn and update the UI again
+            handleTurnEnd(gc, sx, sy, s, c, tx, ty);
+        });
+
+        // Start the timer
+        pause.play();
+    }
+
+
+    // The actual brain of the bot: decides exactly where to place its stone
+    private void makeBotMove() {
+        // Main Strategy: Try to build a straight horizontal line across the middle (row 5)
+        int targetRow = 5;
+        for (int col = 0; col < COLS; col++) {
+            // Find the first empty hole in row 5 from left to right
+            if (game.getBoard().isCellEmpty(targetRow, col)) {
+                game.placeStone(targetRow, col);
+                recordMove(targetRow, col, false);
+                return; // Move is done, exit the method
+            }
+        }
+
+        // Fallback Strategy: If row 5 is completely full, just find ANY empty hole on the board
+        for (int r = 0; r < ROWS; r++) {
+            for (int col = 0; col < COLS; col++) {
+                if (game.getBoard().isCellEmpty(r, col)) {
+                    game.placeStone(r, col);
+                    recordMove(r, col, false);
+                    return; // Move is done, exit the method
+                }
+            }
+        }
+    }
+
+
+    // Checks if a specific cell is part of the final winning connection
+    // Used by the drawing code to make the winning stones glow
+
+    private boolean isPartOfWinningPath(int r, int c) {
+        // If the game is still playing, there is no winning path yet
+        if (!game.isGameOver()) return false;
+
+        // Get the list of winning coordinates from the game logic
+        List<int[]> path = game.getWinningPath();
+        if (path == null) return false;
+
+        // Look through the list. If our row (r) and column (c) match, it is a winning stone!
+        for (int[] pos : path) {
+            if (pos[0] == r && pos[1] == c) return true;
+        }
+
+        return false;
     }
 
     // ================= DRAW =================
@@ -187,7 +309,10 @@ public class QuaxUI extends Application {
 
                 Cell cell = game.getBoard().getCell(row, col);
                 if (cell != null && !cell.isEmpty()) {
-                    drawStone(gc, cx, cy, cell.getColor());
+                    // Calculate Sprint 4 highlights
+                    boolean highlight = (!lastMoveIsRhombic && lastMoveRow == row && lastMoveCol == col);
+                    boolean isWinning = isPartOfWinningPath(row, col);
+                    drawStone(gc, cx, cy, cell.getColor(), highlight, isWinning);
                 }
             }
         }
@@ -198,7 +323,9 @@ public class QuaxUI extends Application {
                 if (rhombicStones[r][c] != null) {
                     double rx = startX + (c + 1) * stepX;
                     double ry = startY + (r + 1) * stepY;
-                    drawRhombicStone(gc, rx, ry, rhombicStones[r][c], cut);
+                    boolean highlight = (lastMoveIsRhombic && lastMoveRow == r && lastMoveCol == c);
+                    boolean isWinning = isPartOfWinningPath(r, c); // Path logic handles both
+                    drawRhombicStone(gc, rx, ry, rhombicStones[r][c], cut, highlight, isWinning);
                 }
             }
         }
@@ -280,15 +407,17 @@ public class QuaxUI extends Application {
 
         // ===== Turn indicator =====
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-        String turnText = (game.getCurrentPlayer() == Colour.BLACK)
-                ? "Current turn: User (BLACK)"
-                : "Current turn: Bot (WHITE)";
+        // Dynamic Turn and Bot Thinking Status
+        String turnText = isBotThinking ? "Bot is thinking..." :
+                (game.getCurrentPlayer() == Colour.BLACK ? "Current turn: User (BLACK)" : "Current turn: Bot (WHITE)");
+        if (game.isGameOver()) turnText = "GAME OVER";
         gc.fillText(turnText, 400, 120);
 
         // ===== Pie Rule UI – top-right corner =====
         // Appears once only: after BLACK's first move, for WHITE to decide.
         // Draw positions use the same PIE_* constants as the hit-test above.
-        if (pieRuleAvailable && !pieRuleHandled) {
+        // SPRINT 4: Hidden if game is over
+        if (pieRuleAvailable && !pieRuleHandled && !game.isGameOver()) {
 
             // Label
             gc.setFill(Color.BLACK);
@@ -315,8 +444,25 @@ public class QuaxUI extends Application {
             gc.fillText("CONTINUE", PIE_CONT_X + 22, PIE_CONT_Y + 22);
         }
 
+        // ===== Winner Announcement =====
+        // Display winning player in giant letters
+        if (game.isGameOver()) {
+            gc.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 60));
+            gc.setFill(game.getWinner() == Colour.BLACK ? Color.BLACK : Color.DARKBLUE);
+            gc.fillText(game.getWinner() + " WINS!", 300, 820);
+        }
+
+        // =====Analysis Area =====
+        gc.setFill(Color.web("#f0f0f0"));
+        gc.fillRoundRect(230, 850, 540, 60, 10, 10);
+        gc.setStroke(Color.DARKGRAY);
+        gc.strokeRoundRect(230, 850, 540, 60, 10, 10);
+        gc.setFill(Color.BLUE);
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        gc.fillText(connectionMessage, 245, 885);
+
         // ===== Error message =====
-        if (!errorMessage.isEmpty()) {
+        if (!errorMessage.isEmpty() && !game.isGameOver()) {
             gc.setFill(Color.RED);
             gc.setFont(Font.font(16));
             gc.fillText(errorMessage, 720, 120);
@@ -363,10 +509,21 @@ public class QuaxUI extends Application {
 
 
 
-    private void drawStone(GraphicsContext gc, double cx, double cy, Colour colour) {
-
-        // stone radius fits inside octagon
+    private void drawStone(GraphicsContext gc, double cx, double cy, Colour colour, boolean highlight, boolean isWinning) {
         double radius = 13;
+
+        //Winning Path Glow for octagonal stone
+        if (isWinning) {
+            gc.setStroke(colour == Colour.BLACK ? Color.PURPLE : Color.DEEPSKYBLUE);
+            gc.setLineWidth(8);
+            gc.strokeOval(cx - radius - 1, cy - radius - 1, (radius + 1) * 2, (radius + 1) * 2);
+            gc.setStroke(Color.WHITE); gc.setLineWidth(2);
+            gc.strokeOval(cx - radius - 1, cy - radius - 1, (radius + 1) * 2, (radius + 1) * 2);
+        } else if (highlight) {
+            // Gold highlight for Bot/Human last move
+            gc.setStroke(Color.GOLD); gc.setLineWidth(4);
+            gc.strokeOval(cx - radius - 2, cy - radius - 2, (radius + 2) * 2, (radius + 2) * 2);
+        }
 
         // fill stone
         gc.setFill(colour == Colour.BLACK ? Color.BLACK : Color.WHITE);
@@ -374,13 +531,22 @@ public class QuaxUI extends Application {
 
         // draw outline
         gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1);
         gc.strokeOval(cx - radius, cy - radius, radius * 2, radius * 2);
     }
 
-    private void drawRhombicStone(GraphicsContext gc, double cx, double cy, Colour colour, double cut) {
-
-        // circle fits snugly inside the diamond gap
+    private void drawRhombicStone(GraphicsContext gc, double cx, double cy, Colour colour, double cut, boolean highlight, boolean isWinning) {
         double radius = cut * 0.55;
+
+        // Rhombic Glow
+        if (isWinning) {
+            gc.setStroke(colour == Colour.BLACK ? Color.PURPLE : Color.DEEPSKYBLUE);
+            gc.setLineWidth(6);
+            gc.strokeOval(cx - radius - 1, cy - radius - 1, (radius + 1) * 2, (radius + 1) * 2);
+        } else if (highlight) {
+            gc.setStroke(Color.GOLD); gc.setLineWidth(4);
+            gc.strokeOval(cx - radius - 2, cy - radius - 2, (radius + 2) * 2, (radius + 2) * 2);
+        }
 
         // fill stone
         gc.setFill(colour == Colour.BLACK ? Color.BLACK : Color.WHITE);
