@@ -24,7 +24,7 @@ public class QuaxUI extends Application {
     private boolean firstMoveDone = false;
     private String errorMessage = "";
 
-    // SPRINT 4 NEW STATE: Bot logic and Path Analysis
+    //Bot logic and Path Analysis
     private boolean isBotThinking = false;
     private String connectionMessage = "Chains -> BLACK: 0 | WHITE: 0";
     private int lastMoveRow = -1;
@@ -80,7 +80,7 @@ public class QuaxUI extends Application {
             double my = e.getY();
 
             // ── Block all input during bot's turn ─────────────────────────────
-            // SPRINT 4: Disable clicks if Bot is moving or game ended
+            //Disable clicks if Bot is moving or game ended
             if (isBotThinking || game.isGameOver()) return;
 
             // ── Pie rule button hit-tests (top-right corner) ──────────────────
