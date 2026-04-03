@@ -10,6 +10,9 @@ public class Board {
             for(int c = 0; c < SIZE; c++) grid[r][c] = new Cell(r, c);
         }
     }
+    public boolean isValidPosition(int r, int c) {
+        return r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+    }
 
     //get specific cell
     public Cell getCell(int r, int c) {
@@ -42,5 +45,14 @@ public class Board {
         }
     }
 
+    public void createBoard() {
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                grid[r][c] = new Cell(r, c);
+            }
+        }
+    }
+
     public int getSize() { return SIZE; }
+
 }

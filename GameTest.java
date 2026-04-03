@@ -361,4 +361,39 @@ public class GameTest {
 
 	        assertFalse(game.placeRhombus(2, 2));
 	    }
+    @Test
+    void swapAllColours_flipsCorrectly() {
+        Board board = new Board();
+        board.placeStone(0,0,Colour.BLACK);
+        board.placeStone(1,1,Colour.WHITE);
+
+        board.swapAllColours();
+
+        assertEquals(Colour.WHITE, board.getCell(0,0).getColor());
+        assertEquals(Colour.BLACK, board.getCell(1,1).getColor());
+    }
+    @Test
+    void singleStone_doesNotWin() {
+        Game game = new Game();
+        game.getBoard().placeStone(0, 0, Colour.BLACK);
+
+        assertFalse(game.blackWins());
+    }
+    @Test
+    void diagonalFails_ifRhombusWrongColour() {
+        Game game = new Game();
+        Board board = game.getBoard();
+
+        Colour[][] rhombs = new Colour[10][10];
+        game.setRhombicStones(rhombs);
+
+        board.placeStone(0, 0, Colour.BLACK);
+        board.placeStone(1, 1, Colour.BLACK);
+
+        rhombs[0][0] = Colour.WHITE; // wrong colour
+
+        assertFalse(game.blackWins());
+    }
+
+
 	}
