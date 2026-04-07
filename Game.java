@@ -18,6 +18,7 @@ public class Game {
         currentPlayer = Colour.BLACK; // black starts
         gameOver = false;
         winner = null;
+        winningPath.clear();
     }
 
     public Colour getCurrentPlayer() {
@@ -67,7 +68,6 @@ public class Game {
         return true;
     }
 
-
     // helper method
     private boolean hasMatchingRhombusBetween(int row1, int col1, int row2, int col2, Colour colour) {
 
@@ -78,7 +78,8 @@ public class Game {
         int r = Math.min(row1, row2);
         int c = Math.min(col1, col2);
 
-        if (rhombicStones == null) return false;
+        if (rhombicStones == null)
+            return false;
 
         Colour rhomb = rhombicStones[r][c];
         return rhomb != null && rhomb == colour;
@@ -110,7 +111,6 @@ public class Game {
         return false;
     }
 
-
     // search for a black path from the current cell to the bottom row
     private boolean searchBlack(int row, int col, boolean[][] visited) {
         int size = board.getSize();
@@ -126,10 +126,10 @@ public class Game {
         // these are the normal orthogonal directions
         // black & white can always connect through these if the stone next to it is the same colour
         int[][] orthogonalDirections = {
-                {-1, 0}, // up
-                {1, 0},  // down
-                {0, -1}, // left
-                {0, 1}   // right
+            {-1, 0}, // up
+            {1, 0},  // down
+            {0, -1}, // left
+            {0, 1}   // right
         };
 
         // first checks all orthogonal neighbours
@@ -157,10 +157,10 @@ public class Game {
         // checking diagonal neighbours
         // diagonal movement is only allowed if there is a matching black rhombic tile between the two cells
         int[][] diagonalDirections = {
-                {-1, -1}, // up left
-                {-1, 1},  // up right
-                {1, -1},  // down left
-                {1, 1}    // down right
+            {-1, -1}, // up left
+            {-1, 1},  // up right
+            {1, -1},  // down left
+            {1, 1}    // down right
         };
 
         for (int[] d : diagonalDirections) {
@@ -216,7 +216,6 @@ public class Game {
         return false;
     }
 
-
     // search for a white path from the current cell to the right column
     private boolean searchWhite(int row, int col, boolean[][] visited) {
         int size = board.getSize();
@@ -231,10 +230,10 @@ public class Game {
 
         // these are the standard orthogonal directions
         int[][] orthogonalDirections = {
-                {-1, 0}, // up
-                {1, 0},  // down
-                {0, -1}, // left
-                {0, 1}   // right
+            {-1, 0}, // up
+            {1, 0},  // down
+            {0, -1}, // left
+            {0, 1}   // right
         };
 
         // first check all orthogonal neighbours
@@ -262,10 +261,10 @@ public class Game {
         // check diagonal neighbours
         // diagonal movement is only allowed when there is a matching white rhombic tile between the two cells
         int[][] diagonalDirections = {
-                {-1, -1}, // up left
-                {-1, 1},  // up right
-                {1, -1},  // down left
-                {1, 1}    // down right
+            {-1, -1}, // up left
+            {-1, 1},  // up right
+            {1, -1},  // down left
+            {1, 1}    // down right
         };
 
         for (int[] d : diagonalDirections) {
@@ -348,6 +347,36 @@ public class Game {
         return true;
     }
 
+    public void applyPieRule() {
+    }
+
+    // The actual brain of the bot: decides exactly where to place its stone
+    public int[] makeBotMove() {
+        // Main Strategy: Try to build a straight horizontal line across the middle (row 5)
+        int targetRow = 5;
+        for (int col = 0; col < board.getSize(); col++) {
+            // Find the first empty hole in row 5 from left to right
+            if (board.isCellEmpty(targetRow, col)) {
+                if (placeStone(targetRow, col)) {
+                    return new int[] {targetRow, col};
+                }
+            }
+        }
+
+        // Fallback Strategy: If row 5 is completely full, just find ANY empty hole on the board
+        for (int r = 0; r < board.getSize(); r++) {
+            for (int col = 0; col < board.getSize(); col++) {
+                if (board.isCellEmpty(r, col)) {
+                    if (placeStone(r, col)) {
+                        return new int[] {r, col};
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     // tracks whether the game has ended
     private boolean gameOver = false;
 
@@ -368,8 +397,6 @@ public class Game {
         return board;
     }
 
-
-
     // Finds the largest number of connected stones (longest chain) for a specific player
     public int getLongestChain(Colour col) {
         int max = 0; // Stores the size of the biggest chain found so far
@@ -389,15 +416,16 @@ public class Game {
         return max; // Return the size of the longest chain found
     }
 
-
     // Recursively explores and counts all connected stones in a single group
-
     private int countChainRecursive(int r, int c, Colour col, boolean[][] visited) {
         visited[r][c] = true; // Mark current stone as visited so we don't count it twice
         int count = 1;        // Start the count at 1 (for the current stone itself)
 
         // Directions to check: 4 straight (up/down/left/right) and 4 diagonal
-        int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
+        int[][] dirs = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+        };
 
         for (int[] d : dirs) {
             int nr = r + d[0], nc = c + d[1]; // Calculate the neighbour's coordinates
@@ -420,7 +448,6 @@ public class Game {
         return count; // Return the total number of connected stones in this chain
     }
 
-
     // Determines the winning player and triggers the search to highlight their winning path
     private void calculateWinningPath() {
         winningPath.clear(); // Clear out any old path data
@@ -432,7 +459,8 @@ public class Game {
             for (int c = 0; c < size; c++) {
                 if (board.getCell(0, c).getColor() == Colour.BLACK) {
                     // If we successfully trace a path to the bottom, stop searching
-                    if (findPathTrace(0, c, Colour.BLACK, true, new boolean[size][size])) break;
+                    if (findPathTrace(0, c, Colour.BLACK, true, new boolean[size][size]))
+                        break;
                 }
             }
         } else if (winner == Colour.WHITE) {
@@ -441,17 +469,17 @@ public class Game {
             for (int r = 0; r < size; r++) {
                 if (board.getCell(r, 0).getColor() == Colour.WHITE) {
                     // If we successfully trace a path to the right side, stop searching
-                    if (findPathTrace(r, 0, Colour.WHITE, false, new boolean[size][size])) break;
+                    if (findPathTrace(r, 0, Colour.WHITE, false, new boolean[size][size]))
+                        break;
                 }
             }
         }
     }
 
-
     // Traces the exact steps of the winning connection, backing up (backtracking) if it hits a dead end
     private boolean findPathTrace(int r, int c, Colour col, boolean isBlack, boolean[][] v) {
         v[r][c] = true; // Mark this stone as visited during our search
-        winningPath.add(new int[]{r, c}); // Temporarily add this stone to our winning path sequence
+        winningPath.add(new int[] {r, c}); // Temporarily add this stone to our winning path sequence
 
         // Base case: Did we reach the opposite side of the board?
         // Black looks for the bottom row; White looks for the rightmost column.
@@ -460,7 +488,10 @@ public class Game {
         }
 
         // Try moving to all 8 surrounding neighbours
-        int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
+        int[][] dirs = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+        };
         for (int[] d : dirs) {
             int nr = r + d[0], nc = c + d[1]; // Neighbour coordinates
 
@@ -484,11 +515,9 @@ public class Game {
         return false;
     }
 
-
     //Identifies winning path and gives neon winning glow
     public List<int[]> getWinningPath() {
         return winningPath;
     }
-
 
 }

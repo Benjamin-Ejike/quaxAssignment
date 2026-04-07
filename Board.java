@@ -1,22 +1,26 @@
 //creates and manages the board
 
 public class Board {
+
     private static final int SIZE = 11;
     private Cell[][] grid;
 
     public Board() {
         grid = new Cell[SIZE][SIZE];
-        for(int r = 0; r < SIZE; r++) {
-            for(int c = 0; c < SIZE; c++) grid[r][c] = new Cell(r, c);
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++)
+                grid[r][c] = new Cell(r, c);
         }
     }
+
     public boolean isValidPosition(int r, int c) {
         return r >= 0 && r < SIZE && c >= 0 && c < SIZE;
     }
 
     //get specific cell
     public Cell getCell(int r, int c) {
-        if (r >= 0 && r < SIZE && c >= 0 && c < SIZE) return grid[r][c];
+        if (r >= 0 && r < SIZE && c >= 0 && c < SIZE)
+            return grid[r][c];
         return null;
     }
 
@@ -36,10 +40,12 @@ public class Board {
 
     //Swap colour when pie rule is activated
     public void swapAllColours() {
-        for(int r = 0; r < SIZE; r++) {
-            for(int c = 0; c < SIZE; c++) {
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
                 if (!grid[r][c].isEmpty()) {
-                    grid[r][c].setColour(grid[r][c].getColor() == Colour.BLACK ? Colour.WHITE : Colour.BLACK);
+                    grid[r][c].setColour(
+                        grid[r][c].getColor() == Colour.BLACK ? Colour.WHITE : Colour.BLACK
+                    );
                 }
             }
         }
@@ -53,6 +59,7 @@ public class Board {
         }
     }
 
-    public int getSize() { return SIZE; }
-
+    public int getSize() {
+        return SIZE;
+    }
 }

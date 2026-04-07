@@ -80,18 +80,21 @@ public class GameTest {
         Board b = game.getBoard();
         assertSame(a, b);
     }
-    
+
     @Test
     void illegalMove_doesNotPlaceStone() {
+        // checks that an illegal move does not overwrite the existing stone
         Game game = new Game();
-        game.placeStone(4,4);
-        boolean result = game.placeStone(4,4);
+        game.placeStone(4, 4);
+        boolean result = game.placeStone(4, 4);
+
         assertFalse(result);
-        assertEquals(Colour.BLACK, game.getBoard().getCell(4,4).getColor());
+        assertEquals(Colour.BLACK, game.getBoard().getCell(4, 4).getColor());
     }
-    
+
     @Test
     void placeStone_twoValidMoves_placesBlackThenWhite() {
+        // checks that two valid moves place black then white and return turn to black
         Game game = new Game();
         assertTrue(game.placeStone(0, 0)); // BLACK
         assertTrue(game.placeStone(0, 1)); // WHITE
@@ -99,7 +102,7 @@ public class GameTest {
         assertEquals(Colour.WHITE, game.getBoard().getCell(0, 1).getColor());
         assertEquals(Colour.BLACK, game.getCurrentPlayer());
     }
-    
+
     @Test
     void blackWins_returnsFalseOnEmptyBoard() {
         // checks that black has not won on an empty board
@@ -360,29 +363,19 @@ public class GameTest {
 
         assertFalse(game.placeRhombus(2, 2));
     }
-    
-    @Test
-    void swapAllColours_flipsCorrectly() {
-        Board board = new Board();
-        board.placeStone(0,0,Colour.BLACK);
-        board.placeStone(1,1,Colour.WHITE);
 
-        board.swapAllColours();
-
-        assertEquals(Colour.WHITE, board.getCell(0,0).getColor());
-        assertEquals(Colour.BLACK, board.getCell(1,1).getColor());
-    }
-    
     @Test
     void singleStone_doesNotWin() {
+        // checks that one stone alone is not enough to win
         Game game = new Game();
         game.getBoard().placeStone(0, 0, Colour.BLACK);
 
         assertFalse(game.blackWins());
     }
-    
+
     @Test
     void diagonalFails_ifRhombusWrongColour() {
+        // checks that diagonal links fail if the rhombic tile is the wrong colour
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -397,25 +390,34 @@ public class GameTest {
         assertFalse(game.blackWins());
     }
 
+    @Test
+    void applyPieRule_doesNotChangeExistingBoardColours() {
+        // checks that pie rule swaps player roles only and doesnt recolour placed stones
+        Game game = new Game();
+        game.getBoard().placeStone(0, 0, Colour.BLACK);
+        game.applyPieRule();
+
+        assertEquals(Colour.BLACK, game.getBoard().getCell(0, 0).getColor());
+    }
 
     @Test
     void orthogonalConnection_windingPathWins() {
         // checks a valid "snake-like" orthogonal connection from top to bottom
         Game game = new Game();
         Board board = game.getBoard();
-        
+
         board.placeStone(0, 5, Colour.BLACK);
         board.placeStone(1, 5, Colour.BLACK);
         board.placeStone(1, 6, Colour.BLACK);
         board.placeStone(2, 6, Colour.BLACK);
         board.placeStone(2, 5, Colour.BLACK);
         board.placeStone(3, 5, Colour.BLACK);
-        
+
         // Fill the rest of the path down to row 10
         for (int r = 4; r <= 10; r++) {
             board.placeStone(r, 5, Colour.BLACK);
         }
-        
+
         assertTrue(game.blackWins());
     }
 
@@ -424,7 +426,7 @@ public class GameTest {
         // checks diagonal connection fails if there are no rhombic stones placed
         Game game = new Game();
         Board board = game.getBoard();
-        Colour[][] rhombs = new Colour[10][10]; 
+        Colour[][] rhombs = new Colour[10][10];
         game.setRhombicStones(rhombs); // all null
 
         board.placeStone(0, 0, Colour.BLACK);
@@ -437,7 +439,7 @@ public class GameTest {
     void botMove_placesExactlyOneStone() {
         // confirms the bot adds exactly one stone to the board
         Game game = new Game();
-        game.makeBotMove(); 
+        game.makeBotMove();
 
         int stoneCount = countStonesOnBoard(game);
         assertEquals(1, stoneCount);
@@ -447,13 +449,13 @@ public class GameTest {
     void botMove_placesStonesOnEmptyTilesAndNoOverwriting() {
         // confirms bot avoids occupied tiles and places on empty ones
         Game game = new Game();
-        
+
         // Human occupies (5, 0)
         assertTrue(game.placeStone(5, 0));
-        
+
         // Bot moves
         int[] botMove = game.makeBotMove();
-        
+
         assertNotNull(botMove);
         // It shouldn't pick (5, 0) since it's occupied. It should pick (5, 1) based on its logic.
         assertFalse(botMove[0] == 5 && botMove[1] == 0);
@@ -465,7 +467,7 @@ public class GameTest {
         // validate bot behaviour prefers the centre horizontal line (row 5)
         Game game = new Game();
         int[] move = game.makeBotMove();
-        
+
         assertNotNull(move);
         assertEquals(5, move[0]); // Target row is 5
         assertEquals(0, move[1]); // First available column is 0
@@ -475,19 +477,19 @@ public class GameTest {
     void integration_humanThenBotMoveUpdatesBoardCorrectly() {
         // sequence human move followed by bot move
         Game game = new Game();
-        
+
         // Human plays (BLACK)
         assertTrue(game.placeStone(0, 0));
         assertEquals(Colour.WHITE, game.getCurrentPlayer()); // Turn switches
-        
+
         // Bot plays (WHITE)
         int[] botMove = game.makeBotMove();
         assertNotNull(botMove);
-        
+
         // Verify board has both stones
         assertEquals(Colour.BLACK, game.getBoard().getCell(0, 0).getColor());
         assertEquals(Colour.WHITE, game.getBoard().getCell(botMove[0], botMove[1]).getColor());
-        
+
         // Turn should switch back to human (BLACK) after bot moves
         assertEquals(Colour.BLACK, game.getCurrentPlayer());
     }
@@ -496,12 +498,12 @@ public class GameTest {
     void totalNumberOfStones_increasesCorrectlyAfterEachTurn() {
         // verify the total number of stones increases sequentially
         Game game = new Game();
-        
+
         assertEquals(0, countStonesOnBoard(game));
-        
+
         game.placeStone(2, 2); // Human
         assertEquals(1, countStonesOnBoard(game));
-        
+
         game.makeBotMove(); // Bot
         assertEquals(2, countStonesOnBoard(game));
     }
@@ -510,18 +512,18 @@ public class GameTest {
     void botMove_fullBoardDoesNotCrash_returnsNullWhenNoValidMoves() {
         // situations where no valid moves are available
         Game game = new Game();
-        
+
         // Fill entire board manually
         int size = game.getBoard().getSize();
-        for(int r = 0; r < size; r++) {
-            for(int c = 0; c < size; c++) {
+        for (int r = 0; r < size; r++) {
+            for (int c = 0; c < size; c++) {
                 game.getBoard().placeStone(r, c, Colour.BLACK);
             }
         }
-        
+
         // Bot attempts to move
         int[] move = game.makeBotMove();
-        
+
         // Should not crash, and should return null because board is full
         assertNull(move);
     }

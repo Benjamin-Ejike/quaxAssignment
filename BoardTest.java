@@ -1,3 +1,4 @@
+
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -107,18 +108,18 @@ public class BoardTest {
         assertEquals(Colour.WHITE, board.getCell(0, 0).getColor());
         assertEquals(Colour.BLACK, board.getCell(1, 1).getColor());
     }
-    
+
     @Test
     void swapAllColours_ignoresEmptyCells() {
         // checks that swapping colours doesn't crash on empty cells and leaves them empty
         Board board = new Board();
         board.placeStone(2, 2, Colour.BLACK); // Place one stone, leave rest empty
-        
+
         board.swapAllColours();
-        
+
         // The placed stone should be flipped
         assertEquals(Colour.WHITE, board.getCell(2, 2).getColor());
-        
+
         // An empty cell should remain empty (null colour)
         assertTrue(board.isCellEmpty(3, 3));
         assertNull(board.getCell(3, 3).getColor());
