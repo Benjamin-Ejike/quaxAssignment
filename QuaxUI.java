@@ -18,42 +18,51 @@ public class QuaxUI extends Application {
 
     private final Game game = new Game();
 
-    // UI state
-    private boolean pieRuleAvailable = false;
-    private boolean pieRuleHandled = false;
-    private boolean firstMoveDone = false;
-    private String errorMessage = "";
+    // ── Game mode ─────────────────────────────────────────────────────────────
+    // true  = Human vs Bot  (default)
+    // false = Human vs Human
+    private boolean vsBot = true;
 
-    //Bot logic and Path Analysis
-    private boolean isBotThinking = false;
-    private String connectionMessage = "Chains -> BLACK: 0 | WHITE: 0";
-    private int lastMoveRow = -1;
-    private int lastMoveCol = -1;
+    // true while the start screen is showing, false once a mode is chosen
+    private boolean onStartScreen = true;
+
+    // ── Start screen button geometry ──────────────────────────────────────────
+    // Both buttons same size, centred symmetrically around x=500
+    // gap between buttons = 20px, so each starts at 500 - 20/2 - 220 = 270 and 500 + 10 = 510
+    private static final double BTN_W        = 220;
+    private static final double BTN_H        = 55;
+    private static final double BTN_VS_BOT_X = 270;
+    private static final double BTN_VS_BOT_Y = 420;
+    private static final double BTN_VS_HUM_X = 510;
+    private static final double BTN_VS_HUM_Y = 420;
+
+    // UI state
+    private boolean pieRuleAvailable  = false;
+    private boolean pieRuleHandled    = false;
+    private boolean firstMoveDone     = false;
+    private String  errorMessage      = "";
+
+    // Bot and path analysis
+    private boolean isBotThinking     = false;
+    private String  connectionMessage = "Chains -> BLACK: 0 | WHITE: 0";
+    private int     lastMoveRow       = -1;
+    private int     lastMoveCol       = -1;
     private boolean lastMoveIsRhombic = false;
 
-    private Colour userColour = Colour.WHITE;
-    private Colour botColour = Colour.BLACK;
-
-    // Rhombic cell stones – [row][col] where row,col in [0..9]
-    // Each entry is the colour placed, or null if empty.
-    // rhombicStones[r][c] sits at the intersection between
-    // oct[r][c], oct[r][c+1], oct[r+1][c], oct[r+1][c+1].
+    // Rhombic cell stones [row][col], row,col in [0..9]
     private final Colour[][] rhombicStones = new Colour[10][10];
 
     // ── Pie rule button geometry (top-right corner) ───────────────────────────
-    // Single source of truth: draw code and hit-test both use these constants.
     private static final double PIE_LABEL_X = 830;
     private static final double PIE_LABEL_Y = 30;
-
-    private static final double PIE_SWAP_X = 830;
-    private static final double PIE_SWAP_Y = 40;
-    private static final double PIE_SWAP_W = 130;
-    private static final double PIE_SWAP_H = 34;
-
-    private static final double PIE_CONT_X = 830;
-    private static final double PIE_CONT_Y = 82;
-    private static final double PIE_CONT_W = 130;
-    private static final double PIE_CONT_H = 34;
+    private static final double PIE_SWAP_X  = 830;
+    private static final double PIE_SWAP_Y  = 40;
+    private static final double PIE_SWAP_W  = 130;
+    private static final double PIE_SWAP_H  = 34;
+    private static final double PIE_CONT_X  = 830;
+    private static final double PIE_CONT_Y  = 82;
+    private static final double PIE_CONT_W  = 130;
+    private static final double PIE_CONT_H  = 34;
 
     @Override
     public void start(Stage stage) {
@@ -64,19 +73,10 @@ public class QuaxUI extends Application {
         // ===== Board geometry =====
         double startX = 230;
         double startY = 180;
-
-        // Octagons share edges with no gap between them.
-        // The rhombic diamond at each 4-cell corner is formed purely by the
-        // cut corners.  cut = size * 0.414 makes the 8 sides equal length
-        // (regular octagon). We use a slightly larger cut so the diamond gap
-        // is prominent and easy to click.
-        double size = 24;           // octagon half-size
-        double cut = size * 0.55;   // larger cut → bigger rhombic diamond
-
-        double stepX = size * 2;    // no gap: octagons share edges
-        double stepY = size * 2;
-
-        game.setRhombicStones(rhombicStones);
+        double size   = 24;
+        double cut    = size * 0.55;
+        double stepX  = size * 2;
+        double stepY  = size * 2;
 
         // ===== Mouse handling =====
         canvas.setOnMouseClicked(e -> {
@@ -84,72 +84,70 @@ public class QuaxUI extends Application {
             double mx = e.getX();
             double my = e.getY();
 
-            // ── Block all input during bot's turn ─────────────────────────────
+            // ── Start screen ──────────────────────────────────────────────────
+            if (onStartScreen) {
 
-            //Disable clicks if Bot is moving or game ended
+                // Human vs Bot button
+                if (mx >= BTN_VS_BOT_X && mx <= BTN_VS_BOT_X + BTN_W
+                        && my >= BTN_VS_BOT_Y && my <= BTN_VS_BOT_Y + BTN_H) {
+                    vsBot         = true;
+                    onStartScreen = false;
+                    drawUI(gc, startX, startY, size, cut, stepX, stepY);
+                    return;
+                }
+
+                // Human vs Human button
+                if (mx >= BTN_VS_HUM_X && mx <= BTN_VS_HUM_X + BTN_W
+                        && my >= BTN_VS_HUM_Y && my <= BTN_VS_HUM_Y + BTN_H) {
+                    vsBot         = false;
+                    onStartScreen = false;
+                    drawUI(gc, startX, startY, size, cut, stepX, stepY);
+                    return;
+                }
+
+                return; // ignore clicks elsewhere on start screen
+            }
+
+            // ── Block input while bot thinks or game is over ──────────────────
             if (isBotThinking || game.isGameOver()) return;
 
-            // SPRINT 4: Disable clicks if Bot is moving or game ended
-            if (isBotThinking || game.isGameOver())
-                return;
-
-            // ── Pie rule button hit-tests (top-right corner) ──────────────────
+            // ── Pie rule buttons ──────────────────────────────────────────────
             if (pieRuleAvailable && !pieRuleHandled) {
 
                 // SWAP button
                 if (mx >= PIE_SWAP_X && mx <= PIE_SWAP_X + PIE_SWAP_W
                         && my >= PIE_SWAP_Y && my <= PIE_SWAP_Y + PIE_SWAP_H) {
-                    game.applyPieRule(); // logic: swap existing stones
-                    Colour temp = userColour;
-                    userColour = botColour;
-                    botColour = temp;
-                    pieRuleHandled = true;
+                    game.getBoard().swapAllColours();
+                    game.switchTurn();
+                    pieRuleHandled   = true;
                     pieRuleAvailable = false;
-                    errorMessage = "";
+                    errorMessage     = "";
                     drawUI(gc, startX, startY, size, cut, stepX, stepY);
-
-                    if (!game.isGameOver() && game.getCurrentPlayer() == botColour) {
-                        triggerBotMove(gc, startX, startY, size, cut, stepX, stepY);
-                    }
                     return;
                 }
 
                 // CONTINUE button
                 if (mx >= PIE_CONT_X && mx <= PIE_CONT_X + PIE_CONT_W
                         && my >= PIE_CONT_Y && my <= PIE_CONT_Y + PIE_CONT_H) {
-                    pieRuleHandled = true;
+                    pieRuleHandled   = true;
                     pieRuleAvailable = false;
-                    errorMessage = "";
+                    errorMessage     = "";
                     drawUI(gc, startX, startY, size, cut, stepX, stepY);
                     return;
                 }
-
-                return;
             }
 
-            if (game.getCurrentPlayer() == botColour)
-                return;
-
             // ── Rhombic cell click ────────────────────────────────────────────
-            // Rhombic intersections sit exactly at the grid corners:
-            //   centreX = startX + col * stepX   (col in 1..10)
-            //   centreY = startY + row * stepY   (row in 1..10)
-            // We store them as rhombicStones[r][c] with r,c in [0..9],
-            // so the intersection between rows r,r+1 and cols c,c+1 is [r][c].
-            double rhombRadius = cut * 0.65;  // click tolerance = fits inside diamond
+            double  rhombRadius  = cut * 0.65;
             boolean clickedRhomb = false;
+
             for (int r = 0; r < ROWS - 1 && !clickedRhomb; r++) {
                 for (int c = 0; c < COLS - 1 && !clickedRhomb; c++) {
                     double rx = startX + (c + 1) * stepX;
                     double ry = startY + (r + 1) * stepY;
-                    // Diamond (L1) hit-test: |dx|+|dy| <= radius
                     if (Math.abs(mx - rx) + Math.abs(my - ry) <= rhombRadius) {
-                        if (game.placeRhombus(r, c)) { // Use logic method
-                            // Sprint 4: Dismiss Pie Rule if player makes a move
-                            if (pieRuleAvailable) {
-                                pieRuleAvailable = false;
-                                pieRuleHandled = true;
-                            }
+                        if (game.placeRhombus(r, c)) {
+                            if (pieRuleAvailable) { pieRuleAvailable = false; pieRuleHandled = true; }
                             recordMove(r, c, true);
                             handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
                         } else {
@@ -160,15 +158,15 @@ public class QuaxUI extends Application {
                     }
                 }
             }
-            if (clickedRhomb)
-                return;
+            if (clickedRhomb) return;
+
+            game.setRhombicStones(rhombicStones);
 
             // ── Octagon cell click ────────────────────────────────────────────
             int col = (int) ((mx - startX) / stepX);
             int row = (int) ((my - startY) / stepY);
 
-            if (row < 0 || row >= ROWS || col < 0 || col >= COLS)
-                return;
+            if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
 
             boolean success = game.placeStone(row, col);
 
@@ -178,10 +176,13 @@ public class QuaxUI extends Application {
                 errorMessage = "";
                 recordMove(row, col, false);
 
-                // Sprint 4: Rule must disappear after move 2
-                pieRuleAvailable = false;
-                pieRuleHandled = true;
-
+                if (!firstMoveDone) {
+                    firstMoveDone    = true;
+                    pieRuleAvailable = true;
+                } else {
+                    pieRuleAvailable = false;
+                    pieRuleHandled   = true;
+                }
                 handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
             }
 
@@ -193,103 +194,141 @@ public class QuaxUI extends Application {
         stage.setScene(new Scene(root));
         stage.show();
 
-        drawUI(gc, startX, startY, size, cut, stepX, stepY);
-
-        if (!game.isGameOver() && game.getCurrentPlayer() == botColour) {
-            triggerBotMove(gc, startX, startY, size, cut, stepX, stepY);
-        }
+        // show the start screen first
+        drawStartScreen(gc);
     }
 
-    // Saves the details of the most recent move so we can highlight it on the board
+    // =========================================================================
+    //  START SCREEN
+    // =========================================================================
+
+    private void drawStartScreen(GraphicsContext gc) {
+
+        // dark background
+        gc.setFill(Color.web("#1a1a2e"));
+        gc.fillRect(0, 0, 1000, 950);
+
+        // title
+        gc.setFill(Color.ORANGE);
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, 72));
+        gc.fillText(" QUAX", 370, 200);
+
+        // subtitle
+        gc.setFill(Color.web("#cccccc"));
+        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 22));
+        gc.fillText("     Choose your game mode", 340, 260);
+
+        // decorative line
+        gc.setStroke(Color.ORANGE);
+        gc.setLineWidth(2);
+        gc.strokeLine(200, 290, 800, 290);
+
+        // rule reminder
+        gc.setFill(Color.web("#aaaaaa"));
+        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 15));
+        gc.fillText("            BLACK connects Top to Bottom     |     WHITE connects Left to Right", 215, 370);
+
+        // ── Human vs Bot button (orange = default / recommended) ──────────────
+        gc.setFill(Color.ORANGE);
+        gc.fillRoundRect(BTN_VS_BOT_X, BTN_VS_BOT_Y, BTN_W, BTN_H, 12, 12);
+        gc.setStroke(Color.web("#cc6600"));
+        gc.setLineWidth(2);
+        gc.strokeRoundRect(BTN_VS_BOT_X, BTN_VS_BOT_Y, BTN_W, BTN_H, 12, 12);
+        gc.setFill(Color.web("#1a1a2e"));
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        gc.fillText("Human  vs  Bot", BTN_VS_BOT_X + 28, BTN_VS_BOT_Y + 34);
+
+        // ── Human vs Human button ─────────────────────────────────────────────
+        gc.setFill(Color.web("#2e2e4e"));
+        gc.fillRoundRect(BTN_VS_HUM_X, BTN_VS_HUM_Y, BTN_W, BTN_H, 12, 12);
+        gc.setStroke(Color.web("#6666aa"));
+        gc.setLineWidth(2);
+        gc.strokeRoundRect(BTN_VS_HUM_X, BTN_VS_HUM_Y, BTN_W, BTN_H, 12, 12);
+        gc.setFill(Color.web("#ccccff"));
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        gc.fillText("Human  vs  Human", BTN_VS_HUM_X + 14, BTN_VS_HUM_Y + 34);
+
+        // instruction
+        gc.setFill(Color.web("#888888"));
+        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
+        gc.fillText("          Click a button to start", 390, 530);
+    }
+
+    // =========================================================================
+    //  TURN MANAGEMENT
+    // =========================================================================
+
     private void recordMove(int r, int c, boolean isRhombic) {
-        lastMoveRow = r;
-        lastMoveCol = c;
+        lastMoveRow       = r;
+        lastMoveCol       = c;
         lastMoveIsRhombic = isRhombic;
-
-        // Clear any previous error messages since a valid move was just made
-        errorMessage = "";
+        errorMessage      = "";
     }
 
-    // Called after every move to update the UI and pass the turn to the bot if needed
-    private void handleTurnEnd(GraphicsContext gc, double sx, double sy, double s, double c, double tx, double ty) {
-        // Calculate the longest connected chains for both players
+    private void handleTurnEnd(GraphicsContext gc,
+                               double sx, double sy,
+                               double s,  double c,
+                               double tx, double ty) {
         int b = game.getLongestChain(Colour.BLACK);
         int w = game.getLongestChain(Colour.WHITE);
+        connectionMessage = String.format("Chains -> BLACK: %d | WHITE: %d", b, w);
 
-        // Update the text displayed at the bottom of the screen
-        this.connectionMessage = String.format("Chains -> BLACK: %d | WHITE: %d", b, w);
-
-        // Redraw the board to show the new stone and updated text
         drawUI(gc, sx, sy, s, c, tx, ty);
 
-        // If the game isn't over and it is now White's turn, trigger the bot
-        if (!game.isGameOver() && game.getCurrentPlayer() == botColour && !(pieRuleAvailable && !pieRuleHandled)) {
+        // only auto-trigger bot in vs-bot mode when it is WHITE's turn
+        if (vsBot && !game.isGameOver() && game.getCurrentPlayer() == Colour.WHITE) {
             triggerBotMove(gc, sx, sy, s, c, tx, ty);
         }
     }
 
-    // Creates a short delay before the bot moves so it looks like it's "thinking"
-    private void triggerBotMove(GraphicsContext gc, double sx, double sy, double s, double c, double tx, double ty) {
-        // Set to true so the user can't click the board while the bot takes its turn
+    private void triggerBotMove(GraphicsContext gc,
+                                double sx, double sy,
+                                double s,  double c,
+                                double tx, double ty) {
         isBotThinking = true;
-
-        // Redraw immediately to show the "Bot is thinking..." message
         drawUI(gc, sx, sy, s, c, tx, ty);
 
-        // Create a 0.8-second timer
+        // short delay so "Bot is thinking..." renders before the move runs
         PauseTransition pause = new PauseTransition(Duration.seconds(0.8));
         pause.setOnFinished(event -> {
+            makeBotMove();
+            isBotThinking = false;
 
-            // Once the timer finishes, actually place the bot's stone
-            int[] botMove = game.makeBotMove();
-            if (botMove != null) {
-                recordMove(botMove[0], botMove[1], false);
-            }
-            isBotThinking = false; // The bot is done, unlock the board for the human
-
-            // After BLACK's first move the turn switches to WHITE –
-            // offer the pie rule to WHITE exactly once.
-            if (!firstMoveDone) {
-                firstMoveDone = true;
-                pieRuleAvailable = true;
-                pieRuleHandled = false;
+            if (pieRuleAvailable) {
+                pieRuleAvailable = false;
+                pieRuleHandled   = true;
             }
 
-            // End the bot's turn and update the UI again
             handleTurnEnd(gc, sx, sy, s, c, tx, ty);
         });
-
-        // Start the timer
         pause.play();
     }
 
-    // Checks if a specific cell is part of the final winning connection
-    // Used by the drawing code to make the winning stones glow
-    private boolean isPartOfWinningPath(int r, int c) {
-        // If the game is still playing, there is no winning path yet
-        if (!game.isGameOver())
-            return false;
-
-        // Get the list of winning coordinates from the game logic
-        List<int[]> path = game.getWinningPath();
-        if (path == null)
-            return false;
-
-        // Look through the list. If our row (r) and column (c) match, it is a winning stone!
-        for (int[] pos : path) {
-            if (pos[0] == r && pos[1] == c)
-                return true;
+    private void makeBotMove() {
+        int[] move = game.makeBotMove();
+        if (move != null) {
+            recordMove(move[0], move[1], false);
         }
+    }
 
+    private boolean isPartOfWinningPath(int r, int c) {
+        if (!game.isGameOver()) return false;
+        List<int[]> path = game.getWinningPath();
+        if (path == null) return false;
+        for (int[] pos : path) {
+            if (pos[0] == r && pos[1] == c) return true;
+        }
         return false;
     }
 
-    // ================= DRAW =================
+    // =========================================================================
+    //  DRAW
+    // =========================================================================
 
     private void drawUI(GraphicsContext gc,
                         double startX, double startY,
-                        double size, double cut,
-                        double stepX, double stepY) {
+                        double size,   double cut,
+                        double stepX,  double stepY) {
 
         // background
         gc.setFill(Color.WHITE);
@@ -298,15 +337,11 @@ public class QuaxUI extends Application {
         // ===== Board =====
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLS; col++) {
-
                 double cx = startX + col * stepX + stepX / 2;
                 double cy = startY + row * stepY + stepY / 2;
-
                 drawOctagon(gc, cx, cy, size, cut);
-
                 Cell cell = game.getBoard().getCell(row, col);
                 if (cell != null && !cell.isEmpty()) {
-                    // Calculate Sprint 4 highlights
                     boolean highlight = (!lastMoveIsRhombic && lastMoveRow == row && lastMoveCol == col);
                     boolean isWinning = isPartOfWinningPath(row, col);
                     drawStone(gc, cx, cy, cell.getColor(), highlight, isWinning);
@@ -321,76 +356,48 @@ public class QuaxUI extends Application {
                     double rx = startX + (c + 1) * stepX;
                     double ry = startY + (r + 1) * stepY;
                     boolean highlight = (lastMoveIsRhombic && lastMoveRow == r && lastMoveCol == c);
-                    boolean isWinning = isPartOfWinningPath(r, c); // Path logic handles both
+                    boolean isWinning = isPartOfWinningPath(r, c);
                     drawRhombicStone(gc, rx, ry, rhombicStones[r][c], cut, highlight, isWinning);
                 }
             }
         }
 
         // ===== Coloured edge strips =====
-        // BLACK owns TOP and BOTTOM → dark strip
-        // WHITE owns LEFT and RIGHT → light strip with dark border
         double boardW = COLS * stepX;
         double boardH = ROWS * stepY;
-        double strip = 22;   // thickness of the coloured border band
+        double strip  = 22;
 
-        // TOP strip (BLACK)
         gc.setFill(Color.web("#1a1a1a"));
-        gc.fillRect(startX, startY - strip, boardW, strip);
+        gc.fillRect(startX, startY - strip, boardW, strip);         // TOP (BLACK)
+        gc.fillRect(startX, startY + boardH, boardW, strip);        // BOTTOM (BLACK)
 
-        // BOTTOM strip (BLACK)
-        gc.fillRect(startX, startY + boardH, boardW, strip);
-
-        // LEFT strip (WHITE)
         gc.setFill(Color.web("#e8e8e8"));
-        gc.fillRect(startX - strip, startY, strip, boardH);
+        gc.fillRect(startX - strip, startY, strip, boardH);         // LEFT (WHITE)
         gc.setStroke(Color.web("#888888"));
         gc.setLineWidth(1);
         gc.strokeRect(startX - strip, startY, strip, boardH);
 
-        // RIGHT strip (WHITE)
         gc.setFill(Color.web("#e8e8e8"));
-        gc.fillRect(startX + boardW, startY, strip, boardH);
-        gc.setStroke(Color.web("#888888"));
+        gc.fillRect(startX + boardW, startY, strip, boardH);        // RIGHT (WHITE)
         gc.strokeRect(startX + boardW, startY, strip, boardH);
 
         // ===== Labels inside strips =====
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 13));
-
-        // A–K top (white text on black strip)
         gc.setFill(Color.WHITE);
         for (int i = 0; i < 11; i++) {
-            char letter = (char) ('A' + i);
-            double x = startX + i * stepX + stepX / 2 - 5;
-            double y = startY - strip + 15;
-            gc.fillText(String.valueOf(letter), x, y);
+            char   letter = (char) ('A' + i);
+            double x      = startX + i * stepX + stepX / 2 - 5;
+            gc.fillText(String.valueOf(letter), x, startY - strip + 15);
+            gc.fillText(String.valueOf(letter), x, startY + boardH + 15);
         }
 
-        // A–K bottom (white text on black strip)
-        for (int i = 0; i < 11; i++) {
-            char letter = (char) ('A' + i);
-            double x = startX + i * stepX + stepX / 2 - 5;
-            double y = startY + boardH + 15;
-            gc.fillText(String.valueOf(letter), x, y);
-        }
-
-        // 11–1 left (dark text on white strip)
         gc.setFill(Color.web("#1a1a1a"));
         for (int i = 0; i < 11; i++) {
-            int num = 11 - i;
+            int    num   = 11 - i;
             String label = String.valueOf(num);
-            double x = startX - strip + (num < 10 ? 8 : 3);
-            double y = startY + i * stepY + stepY / 2 + 5;
-            gc.fillText(label, x, y);
-        }
-
-        // 11–1 right (dark text on white strip)
-        for (int i = 0; i < 11; i++) {
-            int num = 11 - i;
-            String label = String.valueOf(num);
-            double x = startX + boardW + (num < 10 ? 8 : 3);
-            double y = startY + i * stepY + stepY / 2 + 5;
-            gc.fillText(label, x, y);
+            double y     = startY + i * stepY + stepY / 2 + 5;
+            gc.fillText(label, startX - strip + (num < 10 ? 8 : 3), y);
+            gc.fillText(label, startX + boardW + (num < 10 ? 8 : 3), y);
         }
 
         // ===== Title =====
@@ -398,31 +405,36 @@ public class QuaxUI extends Application {
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 28));
         gc.fillText("QUAX", 430, 70);
 
-        // Game mode text
+        // active game mode label
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 16));
-        gc.fillText("Human vs Bot", 540, 75);
+        gc.fillText(vsBot ? "Human vs Bot" : "Human vs Human", 530, 75);
 
         // ===== Turn indicator =====
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-        // Dynamic Turn and Bot Thinking Status
-        String turnText = isBotThinking ? "Bot is thinking..."
-                : (game.getCurrentPlayer() == userColour ? "Current turn: User (" + userColour + ")" : "Current turn: Bot (" + botColour + ")");
-        if (game.isGameOver())
+        String turnText;
+        if (game.isGameOver()) {
             turnText = "GAME OVER";
+        } else if (isBotThinking) {
+            turnText = "Bot is thinking...";
+        } else if (vsBot) {
+            turnText = game.getCurrentPlayer() == Colour.BLACK
+                    ? "Current turn: User (BLACK)"
+                    : "Current turn: Bot (WHITE)";
+        } else {
+            // human vs human: just show whose turn it is
+            turnText = game.getCurrentPlayer() == Colour.BLACK
+                    ? "Current turn: BLACK"
+                    : "Current turn: WHITE";
+        }
         gc.fillText(turnText, 400, 120);
 
-        // ===== Pie Rule UI – top-right corner =====
-        // Appears once only: after BLACK's first move, for WHITE to decide.
-        // Draw positions use the same PIE_* constants as the hit-test above.
-        // SPRINT 4: Hidden if game is over
+        // ===== Pie Rule UI =====
         if (pieRuleAvailable && !pieRuleHandled && !game.isGameOver()) {
 
-            // Label
             gc.setFill(Color.BLACK);
             gc.setFont(Font.font("Arial", FontWeight.BOLD, 14));
             gc.fillText("Pie Rule: Swap colours?", PIE_LABEL_X, PIE_LABEL_Y);
 
-            // SWAP button
             gc.setFill(Color.LIGHTGRAY);
             gc.fillRoundRect(PIE_SWAP_X, PIE_SWAP_Y, PIE_SWAP_W, PIE_SWAP_H, 8, 8);
             gc.setStroke(Color.DARKGRAY);
@@ -432,7 +444,6 @@ public class QuaxUI extends Application {
             gc.setFont(Font.font("Arial", FontWeight.BOLD, 14));
             gc.fillText("SWAP", PIE_SWAP_X + 42, PIE_SWAP_Y + 22);
 
-            // CONTINUE button
             gc.setFill(Color.LIGHTGRAY);
             gc.fillRoundRect(PIE_CONT_X, PIE_CONT_Y, PIE_CONT_W, PIE_CONT_H, 8, 8);
             gc.setStroke(Color.DARKGRAY);
@@ -442,15 +453,14 @@ public class QuaxUI extends Application {
             gc.fillText("CONTINUE", PIE_CONT_X + 22, PIE_CONT_Y + 22);
         }
 
-        // ===== Winner Announcement =====
-        // Display winning player in giant letters
+        // ===== Winner announcement =====
         if (game.isGameOver()) {
             gc.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 60));
             gc.setFill(game.getWinner() == Colour.BLACK ? Color.BLACK : Color.DARKBLUE);
             gc.fillText(game.getWinner() + " WINS!", 300, 820);
         }
 
-        // =====Analysis Area =====
+        // ===== Analysis area =====
         gc.setFill(Color.web("#f0f0f0"));
         gc.fillRoundRect(230, 850, 540, 60, 10, 10);
         gc.setStroke(Color.DARKGRAY);
@@ -467,32 +477,34 @@ public class QuaxUI extends Application {
         }
     }
 
-    // ================= SHAPES =================
+    // =========================================================================
+    //  SHAPES
+    // =========================================================================
 
-    private void drawOctagon(GraphicsContext gc, double cx, double cy, double size, double cornerCut) {
+    private void drawOctagon(GraphicsContext gc, double cx, double cy,
+                             double size, double cornerCut) {
 
         // 8 vertices clockwise from top-left of top edge
-        // cx, cy is the centre of the cell
         double[] xPoints = {
-            cx - size + cornerCut,   // 0: top-left of top flat
-            cx + size - cornerCut,   // 1: top-right of top flat
-            cx + size,               // 2: top of right flat
-            cx + size,               // 3: bottom of right flat
-            cx + size - cornerCut,   // 4: bottom-right of bottom flat
-            cx - size + cornerCut,   // 5: bottom-left of bottom flat
-            cx - size,               // 6: bottom of left flat
-            cx - size                // 7: top of left flat
+                cx - size + cornerCut,   // 0: top-left of top flat
+                cx + size - cornerCut,   // 1: top-right of top flat
+                cx + size,               // 2: top of right flat
+                cx + size,               // 3: bottom of right flat
+                cx + size - cornerCut,   // 4: bottom-right of bottom flat
+                cx - size + cornerCut,   // 5: bottom-left of bottom flat
+                cx - size,               // 6: bottom of left flat
+                cx - size                // 7: top of left flat
         };
 
         double[] yPoints = {
-            cy - size,               // 0: top-left of top flat
-            cy - size,               // 1: top-right of top flat
-            cy - size + cornerCut,   // 2: top of right flat
-            cy + size - cornerCut,   // 3: bottom of right flat
-            cy + size,               // 4: bottom-right of bottom flat
-            cy + size,               // 5: bottom-left of bottom flat
-            cy + size - cornerCut,   // 6: bottom of left flat
-            cy - size + cornerCut    // 7: top of left flat
+                cy - size,               // 0: top-left of top flat
+                cy - size,               // 1: top-right of top flat
+                cy - size + cornerCut,   // 2: top of right flat
+                cy + size - cornerCut,   // 3: bottom of right flat
+                cy + size,               // 4: bottom-right of bottom flat
+                cy + size,               // 5: bottom-left of bottom flat
+                cy + size - cornerCut,   // 6: bottom of left flat
+                cy - size + cornerCut    // 7: top of left flat
         };
 
         // fill with board colour
@@ -505,10 +517,13 @@ public class QuaxUI extends Application {
         gc.strokePolygon(xPoints, yPoints, 8);
     }
 
-    private void drawStone(GraphicsContext gc, double cx, double cy, Colour colour, boolean highlight, boolean isWinning) {
+    private void drawStone(GraphicsContext gc, double cx, double cy,
+                           Colour colour, boolean highlight, boolean isWinning) {
+
+        // stone radius fits inside the octagon
         double radius = 13;
 
-        //Winning Path Glow for octagonal stone
+        // winning path glow
         if (isWinning) {
             gc.setStroke(colour == Colour.BLACK ? Color.PURPLE : Color.DEEPSKYBLUE);
             gc.setLineWidth(8);
@@ -517,7 +532,7 @@ public class QuaxUI extends Application {
             gc.setLineWidth(2);
             gc.strokeOval(cx - radius - 1, cy - radius - 1, (radius + 1) * 2, (radius + 1) * 2);
         } else if (highlight) {
-            // Gold highlight for Bot/Human last move
+            // gold ring for last move
             gc.setStroke(Color.GOLD);
             gc.setLineWidth(4);
             gc.strokeOval(cx - radius - 2, cy - radius - 2, (radius + 2) * 2, (radius + 2) * 2);
@@ -533,10 +548,14 @@ public class QuaxUI extends Application {
         gc.strokeOval(cx - radius, cy - radius, radius * 2, radius * 2);
     }
 
-    private void drawRhombicStone(GraphicsContext gc, double cx, double cy, Colour colour, double cut, boolean highlight, boolean isWinning) {
+    private void drawRhombicStone(GraphicsContext gc, double cx, double cy,
+                                  Colour colour, double cut,
+                                  boolean highlight, boolean isWinning) {
+
+        // circle fits snugly inside the diamond gap
         double radius = cut * 0.55;
 
-        // Rhombic Glow
+        // winning glow
         if (isWinning) {
             gc.setStroke(colour == Colour.BLACK ? Color.PURPLE : Color.DEEPSKYBLUE);
             gc.setLineWidth(6);
