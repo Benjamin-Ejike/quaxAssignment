@@ -18,10 +18,8 @@ public class QuaxUI extends Application {
 
     private final Game game = new Game();
 
-    // ── Game mode ─────────────────────────────────────────────────────────────
-    // true  = Human vs Bot  (default)
-    // false = Human vs Human
-    private boolean vsBot = true;
+    // Game is always Human vs Bot
+    private final boolean vsBot = true;
 
     // true while the start screen is showing, false once a mode is chosen
     private boolean onStartScreen = true;
@@ -31,10 +29,9 @@ public class QuaxUI extends Application {
     // gap between buttons = 20px, so each starts at 500 - 20/2 - 220 = 270 and 500 + 10 = 510
     private static final double BTN_W        = 220;
     private static final double BTN_H        = 55;
-    private static final double BTN_VS_BOT_X = 270;
+    private static final double BTN_VS_BOT_X = 390;
     private static final double BTN_VS_BOT_Y = 420;
-    private static final double BTN_VS_HUM_X = 510;
-    private static final double BTN_VS_HUM_Y = 420;
+
 
     // UI state
     private boolean pieRuleAvailable  = false;
@@ -90,16 +87,6 @@ public class QuaxUI extends Application {
                 // Human vs Bot button
                 if (mx >= BTN_VS_BOT_X && mx <= BTN_VS_BOT_X + BTN_W
                         && my >= BTN_VS_BOT_Y && my <= BTN_VS_BOT_Y + BTN_H) {
-                    vsBot         = true;
-                    onStartScreen = false;
-                    drawUI(gc, startX, startY, size, cut, stepX, stepY);
-                    return;
-                }
-
-                // Human vs Human button
-                if (mx >= BTN_VS_HUM_X && mx <= BTN_VS_HUM_X + BTN_W
-                        && my >= BTN_VS_HUM_Y && my <= BTN_VS_HUM_Y + BTN_H) {
-                    vsBot         = false;
                     onStartScreen = false;
                     drawUI(gc, startX, startY, size, cut, stepX, stepY);
                     return;
@@ -216,7 +203,7 @@ public class QuaxUI extends Application {
         // subtitle
         gc.setFill(Color.web("#cccccc"));
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 22));
-        gc.fillText("     Choose your game mode", 340, 260);
+        gc.fillText("      Choose your game mode", 340, 260);
 
         // decorative line
         gc.setStroke(Color.ORANGE);
@@ -226,7 +213,7 @@ public class QuaxUI extends Application {
         // rule reminder
         gc.setFill(Color.web("#aaaaaa"));
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 15));
-        gc.fillText("            BLACK connects Top to Bottom     |     WHITE connects Left to Right", 215, 370);
+        gc.fillText("           BLACK connects Top to Bottom     |     WHITE connects Left to Right", 215, 370);
 
         // ── Human vs Bot button (orange = default / recommended) ──────────────
         gc.setFill(Color.ORANGE);
@@ -236,22 +223,14 @@ public class QuaxUI extends Application {
         gc.strokeRoundRect(BTN_VS_BOT_X, BTN_VS_BOT_Y, BTN_W, BTN_H, 12, 12);
         gc.setFill(Color.web("#1a1a2e"));
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-        gc.fillText("Human  vs  Bot", BTN_VS_BOT_X + 28, BTN_VS_BOT_Y + 34);
+        gc.fillText("   Human  vs  Bot", BTN_VS_BOT_X + 28, BTN_VS_BOT_Y + 34);
 
-        // ── Human vs Human button ─────────────────────────────────────────────
-        gc.setFill(Color.web("#2e2e4e"));
-        gc.fillRoundRect(BTN_VS_HUM_X, BTN_VS_HUM_Y, BTN_W, BTN_H, 12, 12);
-        gc.setStroke(Color.web("#6666aa"));
-        gc.setLineWidth(2);
-        gc.strokeRoundRect(BTN_VS_HUM_X, BTN_VS_HUM_Y, BTN_W, BTN_H, 12, 12);
-        gc.setFill(Color.web("#ccccff"));
-        gc.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-        gc.fillText("Human  vs  Human", BTN_VS_HUM_X + 14, BTN_VS_HUM_Y + 34);
+
 
         // instruction
         gc.setFill(Color.web("#888888"));
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
-        gc.fillText("          Click a button to start", 390, 530);
+        gc.fillText("         Click a button to start", 390, 530);
     }
 
     // =========================================================================
@@ -407,7 +386,7 @@ public class QuaxUI extends Application {
 
         // active game mode label
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 16));
-        gc.fillText(vsBot ? "Human vs Bot" : "Human vs Human", 530, 75);
+        gc.fillText("Human vs Bot", 530, 75);
 
         // ===== Turn indicator =====
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 20));
@@ -420,11 +399,6 @@ public class QuaxUI extends Application {
             turnText = game.getCurrentPlayer() == Colour.BLACK
                     ? "Current turn: User (BLACK)"
                     : "Current turn: Bot (WHITE)";
-        } else {
-            // human vs human: just show whose turn it is
-            turnText = game.getCurrentPlayer() == Colour.BLACK
-                    ? "Current turn: BLACK"
-                    : "Current turn: WHITE";
         }
         gc.fillText(turnText, 400, 120);
 
