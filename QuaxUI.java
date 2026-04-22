@@ -89,14 +89,17 @@ public class QuaxUI extends Application {
                         && my >= BTN_VS_BOT_Y && my <= BTN_VS_BOT_Y + BTN_H) {
                     onStartScreen = false;
                     drawUI(gc, startX, startY, size, cut, stepX, stepY);
+                    // bot plays BLACK and goes first — trigger immediately
+                    triggerBotMove(gc, startX, startY, size, cut, stepX, stepY);
                     return;
                 }
 
                 return; // ignore clicks elsewhere on start screen
             }
 
-            // ── Block input while bot thinks or game is over ──────────────────
+            // ── Block input while bot thinks, game is over, or it is bot's turn ──
             if (isBotThinking || game.isGameOver()) return;
+            if (vsBot && game.getCurrentPlayer() == Colour.BLACK) return;
 
             // ── Pie rule buttons ──────────────────────────────────────────────
             if (pieRuleAvailable && !pieRuleHandled) {
@@ -109,7 +112,8 @@ public class QuaxUI extends Application {
                     pieRuleHandled   = true;
                     pieRuleAvailable = false;
                     errorMessage     = "";
-                    drawUI(gc, startX, startY, size, cut, stepX, stepY);
+                    // after swap, turn is now BLACK (bot) — trigger the bot move
+                    handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
                     return;
                 }
 
@@ -203,7 +207,7 @@ public class QuaxUI extends Application {
         // subtitle
         gc.setFill(Color.web("#cccccc"));
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 22));
-        gc.fillText("      Choose your game mode", 340, 260);
+        gc.fillText("    Choose your game mode", 340, 260);
 
         // decorative line
         gc.setStroke(Color.ORANGE);
@@ -230,7 +234,7 @@ public class QuaxUI extends Application {
         // instruction
         gc.setFill(Color.web("#888888"));
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
-        gc.fillText("         Click a button to start", 390, 530);
+        gc.fillText("          Click a button to start", 390, 530);
     }
 
     // =========================================================================
@@ -254,8 +258,8 @@ public class QuaxUI extends Application {
 
         drawUI(gc, sx, sy, s, c, tx, ty);
 
-        // only auto-trigger bot in vs-bot mode when it is WHITE's turn
-        if (vsBot && !game.isGameOver() && game.getCurrentPlayer() == Colour.WHITE) {
+        // only auto-trigger bot in vs-bot mode when it is BLACK's turn (bot plays BLACK)
+        if (vsBot && !game.isGameOver() && game.getCurrentPlayer() == Colour.BLACK) {
             triggerBotMove(gc, sx, sy, s, c, tx, ty);
         }
     }
@@ -273,9 +277,11 @@ public class QuaxUI extends Application {
             makeBotMove();
             isBotThinking = false;
 
-            if (pieRuleAvailable) {
-                pieRuleAvailable = false;
-                pieRuleHandled   = true;
+            // if this was the bot's very first move, offer the pie rule to the human
+            if (!firstMoveDone && game.getCurrentPlayer() == Colour.WHITE) {
+                firstMoveDone    = true;
+                pieRuleAvailable = true;
+                pieRuleHandled   = false;
             }
 
             handleTurnEnd(gc, sx, sy, s, c, tx, ty);
@@ -396,9 +402,10 @@ public class QuaxUI extends Application {
         } else if (isBotThinking) {
             turnText = "Bot is thinking...";
         } else if (vsBot) {
+            // bot plays BLACK, human plays WHITE
             turnText = game.getCurrentPlayer() == Colour.BLACK
-                    ? "Current turn: User (BLACK)"
-                    : "Current turn: Bot (WHITE)";
+                    ? "Current turn: Bot (BLACK)"
+                    : "Current turn: User (WHITE)";
         }
         gc.fillText(turnText, 400, 120);
 
