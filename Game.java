@@ -24,6 +24,8 @@ public class Game {
         currentPlayer = Colour.BLACK; // black starts
         gameOver = false;
         winner = null;
+        rhombicStones = new Colour[10][10];
+        committedLane = -1;
     }
 
     public Colour getCurrentPlayer() {
@@ -37,6 +39,10 @@ public class Game {
             currentPlayer = Colour.BLACK;
         }
     }
+    public void applyPieRule() {
+        switchTurn();
+    }
+
 
     public boolean placeStone(int row, int col) {
 
@@ -159,7 +165,10 @@ public class Game {
 
     public boolean placeRhombus(int row, int col) {
         if (gameOver) return false;
-        if (rhombicStones == null) return false;
+        //if no rhombus exist- reject move
+        if (rhombicStones == null) {
+            rhombicStones = new Colour[10][10];
+        }
         if (row < 0 || row >= 10 || col < 0 || col >= 10) return false;
         if (rhombicStones[row][col] != null) return false;
 
@@ -654,4 +663,5 @@ public class Game {
         }
         return count;
     }
+
 }

@@ -64,7 +64,7 @@ public class QuaxUI extends Application {
     @Override
     public void start(Stage stage) {
 
-        Canvas canvas = new Canvas(1000, 950);
+        Canvas canvas = new Canvas(1000, 900);
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
         // ===== Board geometry =====
@@ -80,6 +80,7 @@ public class QuaxUI extends Application {
 
             double mx = e.getX();
             double my = e.getY();
+            game.setRhombicStones(rhombicStones);
 
             // ── Start screen ──────────────────────────────────────────────────
             if (onStartScreen) {

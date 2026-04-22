@@ -327,7 +327,6 @@ public class GameTest {
         // checks that an occupied rhombic position cannot be used again
         Game game = new Game();
         Colour[][] rhombs = new Colour[10][10];
-        game.setRhombicStones(rhombs);
 
         assertTrue(game.placeRhombus(2, 2));
         assertFalse(game.placeRhombus(2, 2));
@@ -352,7 +351,7 @@ public class GameTest {
         Game game = new Game();
         Board board = game.getBoard();
         Colour[][] rhombs = new Colour[10][10];
-        game.setRhombicStones(rhombs);
+
 
         for (int row = 0; row < 10; row++) {
             board.placeStone(row, 0, Colour.BLACK);
