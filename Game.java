@@ -9,6 +9,12 @@ public class Game {
     // Field to store the winning path for the UI glow
     private List<int[]> winningPath = new ArrayList<>();
 
+    // The lane the bot is currently committed to driving through.
+    // -1 = not yet chosen. Reset only when the lane becomes fully blocked.
+    // BLACK: committedLane = column index (0-10)
+    // WHITE: committedLane = row index (0-10)
+    private int committedLane = -1;
+
     public Game() {
         startGame();
     }
@@ -34,51 +40,32 @@ public class Game {
 
     public boolean placeStone(int row, int col) {
 
-        // stop all stone placement after the game is over
-        if (gameOver) {
-            return false;
-        }
+        if (gameOver) return false;
 
-        // try to place the stone on the board
         boolean success = board.placeStone(row, col, currentPlayer);
+        if (!success) return false;
 
-        // reject invalid move
-        if (!success) {
-            return false;
-        }
-
-        // after placing, check if the current player has won
         if (currentPlayer == Colour.BLACK && blackWins()) {
-            gameOver = true;
-            winner = Colour.BLACK;
+            gameOver = true; winner = Colour.BLACK;
             calculateWinningPath();
             return true;
         }
-
         if (currentPlayer == Colour.WHITE && whiteWins()) {
-            gameOver = true;
-            winner = Colour.WHITE;
+            gameOver = true; winner = Colour.WHITE;
             calculateWinningPath();
             return true;
         }
 
-        // only switch turn if nobody has won
         switchTurn();
         return true;
     }
 
     // helper method
     private boolean hasMatchingRhombusBetween(int row1, int col1, int row2, int col2, Colour colour) {
-
-        if (Math.abs(row1 - row2) != 1 || Math.abs(col1 - col2) != 1) {
-            return false;
-        }
-
+        if (Math.abs(row1 - row2) != 1 || Math.abs(col1 - col2) != 1) return false;
         int r = Math.min(row1, row2);
         int c = Math.min(col1, col2);
-
         if (rhombicStones == null) return false;
-
         Colour rhomb = rhombicStones[r][c];
         return rhomb != null && rhomb == colour;
     }
@@ -87,75 +74,39 @@ public class Game {
     public boolean blackWins() {
         int size = board.getSize();
         boolean[][] visited = new boolean[size][size];
-
         for (int col = 0; col < size; col++) {
             Cell start = board.getCell(0, col);
-            if (start != null && start.getColor() == Colour.BLACK) {
-                if (searchBlack(0, col, visited)) {
-                    return true;
-                }
-            }
+            if (start != null && start.getColor() == Colour.BLACK)
+                if (searchBlack(0, col, visited)) return true;
         }
         return false;
     }
 
     private boolean searchBlack(int row, int col, boolean[][] visited) {
         int size = board.getSize();
-
-        if (row == size - 1) {
-            return true;
-        }
-
+        if (row == size - 1) return true;
         visited[row][col] = true;
 
-        int[][] orthogonalDirections = {
-                {-1, 0}, // up
-                {1, 0},  // down
-                {0, -1}, // left
-                {0, 1}   // right
-        };
-
-        for (int[] d : orthogonalDirections) {
-            int newRow = row + d[0];
-            int newCol = col + d[1];
-
-            if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size) {
-                if (!visited[newRow][newCol]) {
-                    Cell next = board.getCell(newRow, newCol);
-                    if (next != null && next.getColor() == Colour.BLACK) {
-                        if (searchBlack(newRow, newCol, visited)) {
-                            return true;
-                        }
-                    }
-                }
+        int[][] ortho = {{-1,0},{1,0},{0,-1},{0,1}};
+        for (int[] d : ortho) {
+            int nr = row+d[0], nc = col+d[1];
+            if (nr>=0&&nr<size&&nc>=0&&nc<size&&!visited[nr][nc]) {
+                Cell next = board.getCell(nr, nc);
+                if (next!=null&&next.getColor()==Colour.BLACK)
+                    if (searchBlack(nr, nc, visited)) return true;
             }
         }
 
-        int[][] diagonalDirections = {
-                {-1, -1}, // up left
-                {-1, 1},  // up right
-                {1, -1},  // down left
-                {1, 1}    // down right
-        };
-
-        for (int[] d : diagonalDirections) {
-            int newRow = row + d[0];
-            int newCol = col + d[1];
-
-            if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size) {
-                if (!visited[newRow][newCol]) {
-                    Cell next = board.getCell(newRow, newCol);
-                    if (next != null && next.getColor() == Colour.BLACK) {
-                        if (hasMatchingRhombusBetween(row, col, newRow, newCol, Colour.BLACK)) {
-                            if (searchBlack(newRow, newCol, visited)) {
-                                return true;
-                            }
-                        }
-                    }
-                }
+        int[][] diag = {{-1,-1},{-1,1},{1,-1},{1,1}};
+        for (int[] d : diag) {
+            int nr = row+d[0], nc = col+d[1];
+            if (nr>=0&&nr<size&&nc>=0&&nc<size&&!visited[nr][nc]) {
+                Cell next = board.getCell(nr, nc);
+                if (next!=null&&next.getColor()==Colour.BLACK)
+                    if (hasMatchingRhombusBetween(row,col,nr,nc,Colour.BLACK))
+                        if (searchBlack(nr, nc, visited)) return true;
             }
         }
-
         return false;
     }
 
@@ -163,106 +114,78 @@ public class Game {
     public boolean whiteWins() {
         int size = board.getSize();
         boolean[][] visited = new boolean[size][size];
-
         for (int row = 0; row < size; row++) {
             Cell start = board.getCell(row, 0);
-            if (start != null && start.getColor() == Colour.WHITE) {
-                if (searchWhite(row, 0, visited)) {
-                    return true;
-                }
-            }
+            if (start != null && start.getColor() == Colour.WHITE)
+                if (searchWhite(row, 0, visited)) return true;
         }
         return false;
     }
 
     private boolean searchWhite(int row, int col, boolean[][] visited) {
         int size = board.getSize();
-
-        if (col == size - 1) {
-            return true;
-        }
-
+        if (col == size - 1) return true;
         visited[row][col] = true;
 
-        int[][] orthogonalDirections = {
-                {-1, 0}, // up
-                {1, 0},  // down
-                {0, -1}, // left
-                {0, 1}   // right
-        };
-
-        for (int[] d : orthogonalDirections) {
-            int newRow = row + d[0];
-            int newCol = col + d[1];
-
-            if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size) {
-                if (!visited[newRow][newCol]) {
-                    Cell next = board.getCell(newRow, newCol);
-                    if (next != null && next.getColor() == Colour.WHITE) {
-                        if (searchWhite(newRow, newCol, visited)) {
-                            return true;
-                        }
-                    }
-                }
+        int[][] ortho = {{-1,0},{1,0},{0,-1},{0,1}};
+        for (int[] d : ortho) {
+            int nr = row+d[0], nc = col+d[1];
+            if (nr>=0&&nr<size&&nc>=0&&nc<size&&!visited[nr][nc]) {
+                Cell next = board.getCell(nr, nc);
+                if (next!=null&&next.getColor()==Colour.WHITE)
+                    if (searchWhite(nr, nc, visited)) return true;
             }
         }
 
-        int[][] diagonalDirections = {
-                {-1, -1}, // up left
-                {-1, 1},  // up right
-                {1, -1},  // down left
-                {1, 1}    // down right
-        };
-
-        for (int[] d : diagonalDirections) {
-            int newRow = row + d[0];
-            int newCol = col + d[1];
-
-            if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size) {
-                if (!visited[newRow][newCol]) {
-                    Cell next = board.getCell(newRow, newCol);
-                    if (next != null && next.getColor() == Colour.WHITE) {
-                        if (hasMatchingRhombusBetween(row, col, newRow, newCol, Colour.WHITE)) {
-                            if (searchWhite(newRow, newCol, visited)) {
-                                return true;
-                            }
-                        }
-                    }
-                }
+        int[][] diag = {{-1,-1},{-1,1},{1,-1},{1,1}};
+        for (int[] d : diag) {
+            int nr = row+d[0], nc = col+d[1];
+            if (nr>=0&&nr<size&&nc>=0&&nc<size&&!visited[nr][nc]) {
+                Cell next = board.getCell(nr, nc);
+                if (next!=null&&next.getColor()==Colour.WHITE)
+                    if (hasMatchingRhombusBetween(row,col,nr,nc,Colour.WHITE))
+                        if (searchWhite(nr, nc, visited)) return true;
             }
         }
-
         return false;
     }
 
     // store reference to rhombic tiles from ui
     private Colour[][] rhombicStones;
 
-    public void setRhombicStones(Colour[][] rhombicStones) {
-        this.rhombicStones = rhombicStones;
-    }
+    public void setRhombicStones(Colour[][] stones) { this.rhombicStones = stones; }
+
+    public Colour[][] getRhombicStones() { return rhombicStones; }
 
     public boolean placeRhombus(int row, int col) {
-
         if (gameOver) return false;
         if (rhombicStones == null) return false;
         if (row < 0 || row >= 10 || col < 0 || col >= 10) return false;
         if (rhombicStones[row][col] != null) return false;
 
+        // A rhombic cell at [row][col] sits at the gap between four octagons.
+        // It can be claimed if EITHER diagonal pair belongs to the current player:
+        //   \ diagonal: oct[row][col] and oct[row+1][col+1]
+        //   /  diagonal: oct[row][col+1] and oct[row+1][col]
+        Cell tl = board.getCell(row,     col);       // top-left
+        Cell br = board.getCell(row + 1, col + 1);   // bottom-right
+        Cell tr = board.getCell(row,     col + 1);   // top-right
+        Cell bl = board.getCell(row + 1, col);       // bottom-left
+
+        boolean backslash = tl != null && tl.getColor() == currentPlayer
+                && br != null && br.getColor() == currentPlayer;
+        boolean slash     = tr != null && tr.getColor() == currentPlayer
+                && bl != null && bl.getColor() == currentPlayer;
+
+        if (!backslash && !slash) return false;
+
         rhombicStones[row][col] = currentPlayer;
 
         if (currentPlayer == Colour.BLACK && blackWins()) {
-            gameOver = true;
-            winner = Colour.BLACK;
-            calculateWinningPath();
-            return true;
+            gameOver = true; winner = Colour.BLACK; calculateWinningPath(); return true;
         }
-
         if (currentPlayer == Colour.WHITE && whiteWins()) {
-            gameOver = true;
-            winner = Colour.WHITE;
-            calculateWinningPath();
-            return true;
+            gameOver = true; winner = Colour.WHITE; calculateWinningPath(); return true;
         }
 
         switchTurn();
@@ -284,36 +207,25 @@ public class Game {
         int max = 0;
         int size = board.getSize();
         boolean[][] visited = new boolean[size][size];
-
-        for (int r = 0; r < size; r++) {
-            for (int c = 0; c < size; c++) {
-                if (!visited[r][c] && board.getCell(r, c).getColor() == col) {
-                    max = Math.max(max, countChainRecursive(r, c, col, visited));
-                }
-            }
-        }
+        for (int r = 0; r < size; r++)
+            for (int c = 0; c < size; c++)
+                if (!visited[r][c] && board.getCell(r,c).getColor()==col)
+                    max = Math.max(max, countChainRecursive(r,c,col,visited));
         return max;
     }
 
     private int countChainRecursive(int r, int c, Colour col, boolean[][] visited) {
         visited[r][c] = true;
         int count = 1;
-
         int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
-
         for (int[] d : dirs) {
-            int nr = r + d[0], nc = c + d[1];
-
-            if (nr >= 0 && nr < 11 && nc >= 0 && nc < 11
-                    && !visited[nr][nc]
-                    && board.getCell(nr, nc).getColor() == col) {
-
-                if (Math.abs(d[0]) == 1 && Math.abs(d[1]) == 1) {
-                    if (hasMatchingRhombusBetween(r, c, nr, nc, col)) {
-                        count += countChainRecursive(nr, nc, col, visited);
-                    }
+            int nr=r+d[0], nc=c+d[1];
+            if (nr>=0&&nr<11&&nc>=0&&nc<11&&!visited[nr][nc]&&board.getCell(nr,nc).getColor()==col) {
+                if (Math.abs(d[0])==1&&Math.abs(d[1])==1) {
+                    if (hasMatchingRhombusBetween(r,c,nr,nc,col))
+                        count += countChainRecursive(nr,nc,col,visited);
                 } else {
-                    count += countChainRecursive(nr, nc, col, visited);
+                    count += countChainRecursive(nr,nc,col,visited);
                 }
             }
         }
@@ -327,48 +239,29 @@ public class Game {
     private void calculateWinningPath() {
         winningPath.clear();
         int size = board.getSize();
-
         if (winner == Colour.BLACK) {
-            for (int c = 0; c < size; c++) {
-                if (board.getCell(0, c).getColor() == Colour.BLACK) {
-                    if (findPathTrace(0, c, Colour.BLACK, true, new boolean[size][size])) break;
-                }
-            }
+            for (int c = 0; c < size; c++)
+                if (board.getCell(0,c).getColor()==Colour.BLACK)
+                    if (findPathTrace(0,c,Colour.BLACK,true,new boolean[size][size])) break;
         } else if (winner == Colour.WHITE) {
-            for (int r = 0; r < size; r++) {
-                if (board.getCell(r, 0).getColor() == Colour.WHITE) {
-                    if (findPathTrace(r, 0, Colour.WHITE, false, new boolean[size][size])) break;
-                }
-            }
+            for (int r = 0; r < size; r++)
+                if (board.getCell(r,0).getColor()==Colour.WHITE)
+                    if (findPathTrace(r,0,Colour.WHITE,false,new boolean[size][size])) break;
         }
     }
 
     private boolean findPathTrace(int r, int c, Colour col, boolean isBlack, boolean[][] v) {
         v[r][c] = true;
-        winningPath.add(new int[]{r, c});
-
-        if ((isBlack && r == board.getSize() - 1) || (!isBlack && c == board.getSize() - 1)) {
-            return true;
-        }
-
+        winningPath.add(new int[]{r,c});
+        if ((isBlack&&r==board.getSize()-1)||(!isBlack&&c==board.getSize()-1)) return true;
         int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
         for (int[] d : dirs) {
-            int nr = r + d[0], nc = c + d[1];
-
-            if (nr >= 0 && nr < 11 && nc >= 0 && nc < 11
-                    && !v[nr][nc]
-                    && board.getCell(nr, nc).getColor() == col) {
-
-                if (Math.abs(d[0]) != 1 || Math.abs(d[1]) != 1
-                        || hasMatchingRhombusBetween(r, c, nr, nc, col)) {
-                    if (findPathTrace(nr, nc, col, isBlack, v)) {
-                        return true;
-                    }
-                }
-            }
+            int nr=r+d[0], nc=c+d[1];
+            if (nr>=0&&nr<11&&nc>=0&&nc<11&&!v[nr][nc]&&board.getCell(nr,nc).getColor()==col)
+                if (Math.abs(d[0])!=1||Math.abs(d[1])!=1||hasMatchingRhombusBetween(r,c,nr,nc,col))
+                    if (findPathTrace(nr,nc,col,isBlack,v)) return true;
         }
-
-        winningPath.remove(winningPath.size() - 1);
+        winningPath.remove(winningPath.size()-1);
         return false;
     }
 
@@ -380,237 +273,174 @@ public class Game {
 
     public int[] makeBotMove() {
 
+        // botColour is read fresh from currentPlayer every call.
+        // This means after pie rule swaps all stones, the bot correctly
+        // plays as whatever colour it currently IS — not what it was before.
         Colour botColour   = currentPlayer;
-        Colour humanColour = (botColour == Colour.WHITE) ? Colour.BLACK : Colour.WHITE;
+        Colour humanColour = (botColour == Colour.BLACK) ? Colour.WHITE : Colour.BLACK;
 
-        // Priority 1: win immediately
+        // Priority 0a: place a rhombic tile if it wins the game immediately
+        int[] rhombWin = findWinningRhombicMove(botColour);
+        if (rhombWin != null) { placeRhombus(rhombWin[0], rhombWin[1]); return rhombWin; }
+
+        // Priority 0b: place a rhombic tile that creates an immediate stone win next move
+        // e.g. rhombic connects two chains, then placing one more stone wins
+        int[] rhombSetup = findRhombicSetupMove(botColour);
+        if (rhombSetup != null) { placeRhombus(rhombSetup[0], rhombSetup[1]); return rhombSetup; }
+
+        // Priority 1: win immediately with a stone
         int[] winMove = findWinningMove(botColour);
-        if (winMove != null) {
-            placeStone(winMove[0], winMove[1]);
-            return winMove;
-        }
+        if (winMove != null) { placeStone(winMove[0], winMove[1]); return winMove; }
 
         // Priority 2: block human from winning immediately
         int[] blockMove = findWinningMove(humanColour);
-        if (blockMove != null) {
-            placeStone(blockMove[0], blockMove[1]);
-            return blockMove;
-        }
+        if (blockMove != null) { placeStone(blockMove[0], blockMove[1]); return blockMove; }
 
-        // Priority 3: advance own path with diagonal awareness
-        int[] advanceMove = findAdvanceMove(botColour, humanColour);
-        if (advanceMove != null) {
-            placeStone(advanceMove[0], advanceMove[1]);
-            return advanceMove;
-        }
+        // Priority 3: lane-based attack — find the clearest lane and advance through it
+        int[] laneMove = findLaneAdvance(botColour, humanColour);
+        if (laneMove != null) { placeStone(laneMove[0], laneMove[1]); return laneMove; }
 
-        // Priority 4: block the human's strongest threat with diagonal intercept
+        // Priority 4: block the human's strongest threat
         int[] threatBlock = findThreatBlock(humanColour);
-        if (threatBlock != null) {
-            placeStone(threatBlock[0], threatBlock[1]);
-            return threatBlock;
-        }
+        if (threatBlock != null) { placeStone(threatBlock[0], threatBlock[1]); return threatBlock; }
 
-        // Priority 5: fallback — any empty cell adjacent to own chain
+        // Priority 5: fallback — extend any existing friendly chain forward
         int[] extension = findExtensionMove(botColour);
-        if (extension != null) {
-            placeStone(extension[0], extension[1]);
-            return extension;
-        }
+        if (extension != null) { placeStone(extension[0], extension[1]); return extension; }
 
         return null;
     }
 
     // -------------------------------------------------------------------------
-    //  ADVANCE OWN PATH
+    //  LANE-BASED ATTACK
     // -------------------------------------------------------------------------
 
     /**
-     * Finds the best move to push the bot's own crossing path forward.
+     * Lane-based attack with diagonal detour and lane-switching.
      *
-     * For each step forward (straight or diagonal), the bot checks:
-     *   1. Can I go straight ahead? → do it
-     *   2. Is straight ahead blocked by the human? → try diagonal detour
-     *   3. Prefer the diagonal closest to the centre lane
+     * Step 1: Score all 11 lanes, pick the best one (most friendly, fewest blockers).
+     * Step 2: Walk the lane from the starting edge toward the goal.
+     *         - Empty cell → place there (continue straight).
+     *         - Human stone blocking → take a diagonal step into an adjacent lane,
+     *           then SWITCH to that new lane and continue straight from there.
+     *         - Own stone → already placed, skip forward.
      *
-     * WHITE advances left → right (by column).
-     * BLACK advances top → bottom (by row).
+     * The key improvement: after a diagonal detour, activeLane updates to the
+     * new lane so subsequent moves continue straight in the detour lane rather
+     * than trying to return to the original blocked lane.
      */
-    private int[] findAdvanceMove(Colour botColour, Colour humanColour) {
+    private int[] findLaneAdvance(Colour botColour, Colour humanColour) {
         int size   = board.getSize();
         int centre = size / 2;
 
-        // find the frontier: where the bot's chain has reached so far
-        int frontierProgress = -1;  // furthest column (WHITE) or row (BLACK)
-        int frontierLane     = centre; // row (WHITE) or column (BLACK) of the frontier stone
-
-        for (int r = 0; r < size; r++) {
-            for (int c = 0; c < size; c++) {
-                Cell cell = board.getCell(r, c);
-                if (cell == null || cell.getColor() != botColour) continue;
-
-                int progress = (botColour == Colour.WHITE) ? c : r;
-                int lane     = (botColour == Colour.WHITE) ? r : c;
-
-                if (progress > frontierProgress) {
-                    frontierProgress = progress;
-                    frontierLane     = lane;
-                }
-            }
+        // pick committed lane on first move only — centre column for BLACK, centre row for WHITE
+        if (committedLane == -1) {
+            committedLane = centre;
         }
 
-        // no stones yet: start from the correct starting edge at centre lane
-        if (frontierProgress == -1) {
-            if (botColour == Colour.WHITE) {
-                return findEmptyInLane(0, centre, true, size);
-            } else {
-                return findEmptyInLane(centre, 0, false, size);
-            }
+        // find the frontier: how far we have already gone in the committed lane
+        int frontier = 0;
+        for (int pos = 0; pos < size; pos++) {
+            Cell cell = (botColour == Colour.BLACK)
+                    ? board.getCell(pos, committedLane)
+                    : board.getCell(committedLane, pos);
+            if (cell != null && cell.getColor() == botColour) frontier = pos + 1;
         }
 
-        // try to advance 1 or 2 steps forward from the frontier
-        for (int step = 1; step <= 2; step++) {
-            int nextProgress = frontierProgress + step;
-            if (nextProgress >= size) continue;
+        // try to place the next stone straight ahead in the committed lane
+        for (int pos = frontier; pos < size; pos++) {
+            int r = (botColour == Colour.BLACK) ? pos            : committedLane;
+            int c = (botColour == Colour.BLACK) ? committedLane  : pos;
 
-            // ── straight ahead (same lane) ────────────────────────────────────
-            int[] straight = (botColour == Colour.WHITE)
-                    ? new int[]{frontierLane, nextProgress}
-                    : new int[]{nextProgress, frontierLane};
+            Cell cell = board.getCell(r, c);
+            if (cell == null) continue;
 
-            if (board.isCellEmpty(straight[0], straight[1])) {
-                return straight;
+            if (cell.isEmpty()) {
+                // straight ahead is clear — go here
+                return new int[]{r, c};
             }
 
-            // straight is occupied — check if it is the human blocking us
-            Cell blocker = board.getCell(straight[0], straight[1]);
-            boolean humanIsBlocking = (blocker != null && blocker.getColor() == humanColour);
+            if (cell.getColor() == humanColour) {
+                // human blocking this cell — step one lane sideways at this same row/col
+                // prefer the adjacent lane with fewer human stones
+                int laneA = committedLane - 1;
+                int laneB = committedLane + 1;
+                int[] adj = sortByDistanceToCenter(laneA, laneB, centre, size);
+                int[] best = pickClearerLane(adj, botColour, humanColour, size);
 
-            if (humanIsBlocking) {
-                // ── diagonal detour ───────────────────────────────────────────
-                // try one lane above and one below, prefer closer to centre
-                int[] diagonalLanes = sortByDistanceToCenter(
-                        frontierLane - 1, frontierLane + 1, centre, size);
-
-                for (int diagLane : diagonalLanes) {
-                    int[] diagCell = (botColour == Colour.WHITE)
-                            ? new int[]{diagLane, nextProgress}
-                            : new int[]{nextProgress, diagLane};
-
-                    if (board.isCellEmpty(diagCell[0], diagCell[1])) {
-                        return diagCell;
+                for (int adjLane : best) {
+                    int dr = (botColour == Colour.BLACK) ? pos     : adjLane;
+                    int dc = (botColour == Colour.BLACK) ? adjLane : pos;
+                    if (dr >= 0 && dr < size && dc >= 0 && dc < size && board.isCellEmpty(dr, dc)) {
+                        committedLane = adjLane;  // switch lane and stay there
+                        return new int[]{dr, dc};
                     }
                 }
             }
+            // own stone — already placed, keep scanning forward
         }
 
         return null;
     }
 
-    // returns the two lane options sorted so the one closer to centre comes first
-    private int[] sortByDistanceToCenter(int laneA, int laneB, int centre, int size) {
-        List<Integer> options = new ArrayList<>();
-        if (laneA >= 0 && laneA < size) options.add(laneA);
-        if (laneB >= 0 && laneB < size) options.add(laneB);
-
-        options.sort((a, b) -> Math.abs(a - centre) - Math.abs(b - centre));
-
-        int[] result = new int[options.size()];
-        for (int i = 0; i < options.size(); i++) result[i] = options.get(i);
-        return result;
-    }
-
-    // find the first empty cell in a lane starting from a given position
-    private int[] findEmptyInLane(int startRow, int startCol, boolean isWhite, int size) {
-        if (isWhite) {
-            // WHITE: scan across the row
-            for (int c = startCol; c < size; c++) {
-                if (board.isCellEmpty(startRow, c)) return new int[]{startRow, c};
-            }
-        } else {
-            // BLACK: scan down the column
-            for (int r = startRow; r < size; r++) {
-                if (board.isCellEmpty(r, startCol)) return new int[]{r, startCol};
-            }
-        }
-        return null;
-    }
 
     // -------------------------------------------------------------------------
     //  BLOCK HUMAN THREAT
     // -------------------------------------------------------------------------
 
     /**
-     * Finds the human's most advanced chain and places a blocking stone
-     * directly in its path — straight or diagonally if that path is also blocked.
+     * Finds the human's most dangerous chain and blocks its path.
+     * Searches multiple steps ahead so near-edge chains are still blocked.
      */
     private int[] findThreatBlock(Colour humanColour) {
-        int size             = board.getSize();
-        int dangerThreshold  = 3;
-        int centre           = size / 2;
+        int size            = board.getSize();
+        int dangerThreshold = 2;
+        int centre          = size / 2;
+
+        // find the human stone furthest toward their goal
+        int frontierRow  = -1;
+        int frontierCol  = -1;
+        int bestProgress = -1;
+
+        for (int r = 0; r < size; r++) {
+            for (int c = 0; c < size; c++) {
+                Cell cell = board.getCell(r, c);
+                if (cell == null || cell.getColor() != humanColour) continue;
+                int progress = (humanColour == Colour.BLACK) ? r : c;
+                if (progress > bestProgress) {
+                    bestProgress = progress;
+                    frontierRow  = r;
+                    frontierCol  = c;
+                }
+            }
+        }
+
+        if (bestProgress < dangerThreshold || frontierRow == -1) return null;
 
         if (humanColour == Colour.BLACK) {
-            // BLACK goes top → bottom, track deepest row per column
-            int bestCol   = -1;
-            int bestDepth = 0;
-
-            for (int c = 0; c < size; c++) {
-                int depth = 0;
-                for (int r = 0; r < size; r++) {
-                    Cell cell = board.getCell(r, c);
-                    if (cell != null && cell.getColor() == Colour.BLACK) depth = r + 1;
-                }
-                if (depth > bestDepth) { bestDepth = depth; bestCol = c; }
+            // BLACK heading downward — try multiple steps ahead
+            int[][] forwardDirs = {{1,0},{1,-1},{1,1},{2,0},{2,-1},{2,1}};
+            for (int[] d : forwardDirs) {
+                int nr = frontierRow+d[0], nc = frontierCol+d[1];
+                if (nr>=0&&nr<size&&nc>=0&&nc<size&&board.isCellEmpty(nr,nc))
+                    return new int[]{nr,nc};
             }
-
-            if (bestDepth >= dangerThreshold && bestCol != -1) {
-
-                // try straight block: same column, just below the chain
-                for (int r = bestDepth; r < size; r++) {
-                    if (board.isCellEmpty(r, bestCol)) return new int[]{r, bestCol};
-                }
-
-                // straight column is full: try diagonal intercept
-                // place at the same depth but in an adjacent column
-                int[] diagCols = sortByDistanceToCenter(bestCol - 1, bestCol + 1, centre, size);
-                for (int dc : diagCols) {
-                    if (board.isCellEmpty(bestDepth, dc)) return new int[]{bestDepth, dc};
-                    if (bestDepth - 1 >= 0 && board.isCellEmpty(bestDepth - 1, dc)) {
-                        return new int[]{bestDepth - 1, dc};
-                    }
-                }
-            }
+            // all forward cells occupied: place beside frontier
+            int[] diagCols = sortByDistanceToCenter(frontierCol-1, frontierCol+1, centre, size);
+            for (int dc : diagCols)
+                if (board.isCellEmpty(frontierRow, dc)) return new int[]{frontierRow, dc};
 
         } else {
-            // WHITE goes left → right, track furthest column per row
-            int bestRow   = -1;
-            int bestDepth = 0;
-
-            for (int r = 0; r < size; r++) {
-                int depth = 0;
-                for (int c = 0; c < size; c++) {
-                    Cell cell = board.getCell(r, c);
-                    if (cell != null && cell.getColor() == Colour.WHITE) depth = c + 1;
-                }
-                if (depth > bestDepth) { bestDepth = depth; bestRow = r; }
+            // WHITE heading rightward
+            int[][] forwardDirs = {{0,1},{-1,1},{1,1},{0,2},{-1,2},{1,2}};
+            for (int[] d : forwardDirs) {
+                int nr = frontierRow+d[0], nc = frontierCol+d[1];
+                if (nr>=0&&nr<size&&nc>=0&&nc<size&&board.isCellEmpty(nr,nc))
+                    return new int[]{nr,nc};
             }
-
-            if (bestDepth >= dangerThreshold && bestRow != -1) {
-
-                // try straight block: same row, just ahead of the chain
-                for (int c = bestDepth; c < size; c++) {
-                    if (board.isCellEmpty(bestRow, c)) return new int[]{bestRow, c};
-                }
-
-                // straight row is full: try diagonal intercept
-                int[] diagRows = sortByDistanceToCenter(bestRow - 1, bestRow + 1, centre, size);
-                for (int dr : diagRows) {
-                    if (board.isCellEmpty(dr, bestDepth)) return new int[]{dr, bestDepth};
-                    if (bestDepth - 1 >= 0 && board.isCellEmpty(dr, bestDepth - 1)) {
-                        return new int[]{dr, bestDepth - 1};
-                    }
-                }
-            }
+            int[] diagRows = sortByDistanceToCenter(frontierRow-1, frontierRow+1, centre, size);
+            for (int dr : diagRows)
+                if (board.isCellEmpty(dr, frontierCol)) return new int[]{dr, frontierCol};
         }
 
         return null;
@@ -620,18 +450,90 @@ public class Game {
     //  HELPERS
     // -------------------------------------------------------------------------
 
+    // checks if placing a rhombic tile creates an immediate stone win on the next move
+    // i.e. after placing the rhombic, does findWinningMove return non-null?
+    private int[] findRhombicSetupMove(Colour colour) {
+        if (rhombicStones == null) return null;
+        int size = board.getSize();
+
+        for (int r = 0; r < size - 1; r++) {
+            for (int c = 0; c < size - 1; c++) {
+                if (rhombicStones[r][c] != null) continue;
+
+                // check \ diagonal: bridges oct[r][c] and oct[r+1][c+1]
+                Cell tl = board.getCell(r,     c);
+                Cell br = board.getCell(r + 1, c + 1);
+                boolean drValid = tl != null && tl.getColor() == colour
+                        && br != null && br.getColor() == colour;
+
+                // check / diagonal: bridges oct[r][c+1] and oct[r+1][c]
+                Cell tr = board.getCell(r,     c + 1);
+                Cell bl = board.getCell(r + 1, c);
+                boolean dlValid = tr != null && tr.getColor() == colour
+                        && bl != null && bl.getColor() == colour;
+
+                if (!drValid && !dlValid) continue;
+
+                // temporarily place the rhombic tile
+                rhombicStones[r][c] = colour;
+
+                // check if a winning stone move now exists
+                int[] stoneWin = findWinningMove(colour);
+
+                // undo
+                rhombicStones[r][c] = null;
+
+                if (stoneWin != null) return new int[]{r, c};
+            }
+        }
+        return null;
+    }
+
+    // checks if placing a rhombic tile anywhere wins immediately
+    // checks both diagonal directions: \ (top-left to bottom-right) and / (top-right to bottom-left)
+    private int[] findWinningRhombicMove(Colour colour) {
+        if (rhombicStones == null) return null;
+        int size = board.getSize();
+
+        for (int r = 0; r < size - 1; r++) {
+            for (int c = 0; c < size - 1; c++) {
+                if (rhombicStones[r][c] != null) continue;
+
+                // check \ diagonal: bridges oct[r][c] and oct[r+1][c+1]
+                Cell tl = board.getCell(r,     c);
+                Cell br = board.getCell(r + 1, c + 1);
+                if (tl != null && tl.getColor() == colour
+                        && br != null && br.getColor() == colour) {
+                    rhombicStones[r][c] = colour;
+                    boolean wins = (colour == Colour.BLACK) ? blackWins() : whiteWins();
+                    rhombicStones[r][c] = null;
+                    if (wins) return new int[]{r, c};
+                }
+
+                // check / diagonal: bridges oct[r][c+1] and oct[r+1][c]
+                Cell tr = board.getCell(r,     c + 1);
+                Cell bl = board.getCell(r + 1, c);
+                if (tr != null && tr.getColor() == colour
+                        && bl != null && bl.getColor() == colour) {
+                    rhombicStones[r][c] = colour;
+                    boolean wins2 = (colour == Colour.BLACK) ? blackWins() : whiteWins();
+                    rhombicStones[r][c] = null;
+                    if (wins2) return new int[]{r, c};
+                }
+            }
+        }
+        return null;
+    }
+
     // checks if placing a stone for [colour] anywhere wins immediately
     private int[] findWinningMove(Colour colour) {
         int size = board.getSize();
-
         for (int r = 0; r < size; r++) {
             for (int c = 0; c < size; c++) {
                 if (!board.isCellEmpty(r, c)) continue;
-
                 board.placeStone(r, c, colour);
                 boolean wins = (colour == Colour.BLACK) ? blackWins() : whiteWins();
                 board.getCell(r, c).setColour(null);
-
                 if (wins) return new int[]{r, c};
             }
         }
@@ -639,7 +541,6 @@ public class Game {
     }
 
     // fallback: find any empty cell next to an existing friendly stone
-    // that moves in the right direction
     private int[] findExtensionMove(Colour colour) {
         int size   = board.getSize();
         int centre = size / 2;
@@ -650,14 +551,92 @@ public class Game {
             for (int c = 0; c < size; c++) {
                 if (!board.isCellEmpty(r, c)) continue;
                 if (countFriendlyNeighbours(r, c, colour) == 0) continue;
-
                 int score = (colour == Colour.WHITE)
                         ? c * 10 + (size - Math.abs(r - centre)) * 2
                         : r * 10 + (size - Math.abs(c - centre)) * 2;
-
                 if (score > best) { best = score; result = new int[]{r, c}; }
             }
         }
+        return result;
+    }
+
+    // returns true if the next cell directly ahead of the frontier is a human stone
+    // AND there is no empty cell anywhere ahead of the frontier
+    private boolean isLaneFullyBlocked(int lane, Colour botColour, Colour humanColour, int size) {
+        if (lane < 0 || lane >= size) return true;
+
+        // find frontier: the furthest position the bot has reached in this lane
+        int frontier = 0;
+        for (int pos = 0; pos < size; pos++) {
+            Cell cell = (botColour == Colour.BLACK)
+                    ? board.getCell(pos, lane)
+                    : board.getCell(lane, pos);
+            if (cell != null && cell.getColor() == botColour) frontier = pos + 1;
+        }
+
+        // lane is blocked only if there are NO empty cells ahead of the frontier
+        // a single human stone in the way is NOT enough — we can detour around it
+        int emptyCellsAhead = 0;
+        for (int pos = frontier; pos < size; pos++) {
+            Cell cell = (botColour == Colour.BLACK)
+                    ? board.getCell(pos, lane)
+                    : board.getCell(lane, pos);
+            if (cell != null && cell.isEmpty()) emptyCellsAhead++;
+        }
+
+        // only give up on a lane if more than half of remaining cells are blocked
+        int totalAhead = size - frontier;
+        return totalAhead > 0 && emptyCellsAhead == 0;
+    }
+
+    // picks the better adjacent lane for a detour.
+    // Scores each lane on:
+    //   1. Fewer human blockers (most important — avoid crowded lanes)
+    //   2. Higher lane index for BLACK (prefer right/forward over left/backward)
+    //      Lower lane index for WHITE (prefer downward over upward — toward centre)
+    // Returns lanes sorted best first.
+    private int[] pickClearerLane(int[] lanes, Colour botColour, Colour humanColour, int size) {
+        if (lanes.length < 2) return lanes;
+
+        int blockersA = countHumanInLane(lanes[0], botColour, humanColour, size);
+        int blockersB = countHumanInLane(lanes[1], botColour, humanColour, size);
+
+        // if one lane clearly has fewer blockers, pick it
+        if (blockersA < blockersB) return new int[]{lanes[0], lanes[1]};
+        if (blockersB < blockersA) return new int[]{lanes[1], lanes[0]};
+
+        // equal blockers: for BLACK prefer the higher column (rightward = more options)
+        // for WHITE prefer the lane closer to centre row
+        if (botColour == Colour.BLACK) {
+            // prefer higher lane index (further right column)
+            if (lanes[1] > lanes[0]) return new int[]{lanes[1], lanes[0]};
+        } else {
+            // WHITE: prefer lane closer to centre row (already done by sortByDistanceToCenter)
+        }
+
+        return lanes;
+    }
+
+    // count human stones in a lane (col for BLACK, row for WHITE)
+    private int countHumanInLane(int lane, Colour botColour, Colour humanColour, int size) {
+        int count = 0;
+        for (int pos = 0; pos < size; pos++) {
+            Cell cell = (botColour == Colour.BLACK)
+                    ? board.getCell(pos, lane)   // BLACK: lane=col
+                    : board.getCell(lane, pos);  // WHITE: lane=row
+            if (cell != null && cell.getColor() == humanColour) count++;
+        }
+        return count;
+    }
+
+    // returns lane options sorted by closeness to centre
+    private int[] sortByDistanceToCenter(int laneA, int laneB, int centre, int size) {
+        List<Integer> options = new ArrayList<>();
+        if (laneA >= 0 && laneA < size) options.add(laneA);
+        if (laneB >= 0 && laneB < size) options.add(laneB);
+        options.sort((a, b) -> Math.abs(a - centre) - Math.abs(b - centre));
+        int[] result = new int[options.size()];
+        for (int i = 0; i < options.size(); i++) result[i] = options.get(i);
         return result;
     }
 
@@ -665,17 +644,12 @@ public class Game {
     private int countFriendlyNeighbours(int row, int col, Colour colour) {
         int count = 0;
         int size  = board.getSize();
-
-        int[][] directions = {
-                {-1,0},{1,0},{0,-1},{0,1},
-                {-1,-1},{-1,1},{1,-1},{1,1}
-        };
-
+        int[][] directions = {{-1,0},{1,0},{0,-1},{0,1},{-1,-1},{-1,1},{1,-1},{1,1}};
         for (int[] d : directions) {
-            int nr = row + d[0], nc = col + d[1];
-            if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
-                Cell neighbour = board.getCell(nr, nc);
-                if (neighbour != null && neighbour.getColor() == colour) count++;
+            int nr = row+d[0], nc = col+d[1];
+            if (nr>=0&&nr<size&&nc>=0&&nc<size) {
+                Cell nb = board.getCell(nr, nc);
+                if (nb != null && nb.getColor() == colour) count++;
             }
         }
         return count;
