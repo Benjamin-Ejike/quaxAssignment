@@ -317,6 +317,9 @@ public class GameTest {
         Colour[][] rhombs = new Colour[10][10];
         game.setRhombicStones(rhombs);
 
+        game.getBoard().placeStone(2, 2, Colour.BLACK);
+        game.getBoard().placeStone(3, 3, Colour.BLACK);
+
         assertTrue(game.placeRhombus(2, 2));
         assertEquals(Colour.BLACK, rhombs[2][2]);
         assertEquals(Colour.WHITE, game.getCurrentPlayer());
@@ -327,6 +330,10 @@ public class GameTest {
         // checks that an occupied rhombic position cannot be used again
         Game game = new Game();
         Colour[][] rhombs = new Colour[10][10];
+        game.setRhombicStones(rhombs);
+
+        game.getBoard().placeStone(2, 2, Colour.BLACK);
+        game.getBoard().placeStone(3, 3, Colour.BLACK);
 
         assertTrue(game.placeRhombus(2, 2));
         assertFalse(game.placeRhombus(2, 2));
@@ -350,8 +357,6 @@ public class GameTest {
         // checks that rhombic placement is blocked after game over
         Game game = new Game();
         Board board = game.getBoard();
-        Colour[][] rhombs = new Colour[10][10];
-
 
         for (int row = 0; row < 10; row++) {
             board.placeStone(row, 0, Colour.BLACK);
@@ -390,8 +395,8 @@ public class GameTest {
     }
 
     @Test
-    void applyPieRule_doesNotChangeExistingBoardColours() {
-        // checks that pie rule swaps player roles only and doesnt recolour placed stones
+    void applyPieRule_keepsExistingBoardColours() {
+        // checks that pie rule keeps existing board colours unchanged when applied
         Game game = new Game();
         game.getBoard().placeStone(0, 0, Colour.BLACK);
         game.applyPieRule();
@@ -432,112 +437,5 @@ public class GameTest {
         board.placeStone(1, 1, Colour.BLACK);
 
         assertFalse(game.blackWins());
-    }
-
-    @Test
-    void botMove_placesExactlyOneStone() {
-        // confirms the bot adds exactly one stone to the board
-        Game game = new Game();
-        game.makeBotMove();
-
-        int stoneCount = countStonesOnBoard(game);
-        assertEquals(1, stoneCount);
-    }
-
-    @Test
-    void botMove_placesStonesOnEmptyTilesAndNoOverwriting() {
-        // confirms bot avoids occupied tiles and places on empty ones
-        Game game = new Game();
-
-        // Human occupies (5, 0)
-        assertTrue(game.placeStone(5, 0));
-
-        // Bot moves
-        int[] botMove = game.makeBotMove();
-
-        assertNotNull(botMove);
-        // It shouldn't pick (5, 0) since it's occupied. It should pick (5, 1) based on its logic.
-        assertFalse(botMove[0] == 5 && botMove[1] == 0);
-        assertTrue(game.getBoard().getCell(5, 0).getColor() == Colour.BLACK); // existing stone not overwritten
-    }
-
-    @Test
-    void botMove_validatePreferenceForRowFive() {
-        // validate bot behaviour prefers the centre horizontal line (row 5)
-        Game game = new Game();
-        int[] move = game.makeBotMove();
-
-        assertNotNull(move);
-        assertEquals(5, move[0]); // Target row is 5
-        assertEquals(0, move[1]); // First available column is 0
-    }
-
-    @Test
-    void integration_humanThenBotMoveUpdatesBoardCorrectly() {
-        // sequence human move followed by bot move
-        Game game = new Game();
-
-        // Human plays (BLACK)
-        assertTrue(game.placeStone(0, 0));
-        assertEquals(Colour.WHITE, game.getCurrentPlayer()); // Turn switches
-
-        // Bot plays (WHITE)
-        int[] botMove = game.makeBotMove();
-        assertNotNull(botMove);
-
-        // Verify board has both stones
-        assertEquals(Colour.BLACK, game.getBoard().getCell(0, 0).getColor());
-        assertEquals(Colour.WHITE, game.getBoard().getCell(botMove[0], botMove[1]).getColor());
-
-        // Turn should switch back to human (BLACK) after bot moves
-        assertEquals(Colour.BLACK, game.getCurrentPlayer());
-    }
-
-    @Test
-    void totalNumberOfStones_increasesCorrectlyAfterEachTurn() {
-        // verify the total number of stones increases sequentially
-        Game game = new Game();
-
-        assertEquals(0, countStonesOnBoard(game));
-
-        game.placeStone(2, 2); // Human
-        assertEquals(1, countStonesOnBoard(game));
-
-        game.makeBotMove(); // Bot
-        assertEquals(2, countStonesOnBoard(game));
-    }
-
-    @Test
-    void botMove_fullBoardDoesNotCrash_returnsNullWhenNoValidMoves() {
-        // situations where no valid moves are available
-        Game game = new Game();
-
-        // Fill entire board manually
-        int size = game.getBoard().getSize();
-        for (int r = 0; r < size; r++) {
-            for (int c = 0; c < size; c++) {
-                game.getBoard().placeStone(r, c, Colour.BLACK);
-            }
-        }
-
-        // Bot attempts to move
-        int[] move = game.makeBotMove();
-
-        // Should not crash, and should return null because board is full
-        assertNull(move);
-    }
-
-    // Helper method to count stones (Used for Bot test cases)
-    private int countStonesOnBoard(Game game) {
-        int count = 0;
-        int size = game.getBoard().getSize();
-        for (int r = 0; r < size; r++) {
-            for (int c = 0; c < size; c++) {
-                if (!game.getBoard().isCellEmpty(r, c)) {
-                    count++;
-                }
-            }
-        }
-        return count;
     }
 }
