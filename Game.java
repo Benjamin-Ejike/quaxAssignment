@@ -15,6 +15,18 @@ public class Game {
     // WHITE: committedLane = row index (0-10)
     private int committedLane = -1;
 
+    // store reference to rhombic tiles from ui
+    private Colour[][] rhombicStones;
+
+    // added to keep pie rule state in the game layer instead of the ui
+    private boolean pieRuleAvailable = false;
+    private boolean pieRuleHandled = false;
+    private boolean firstMoveDone = false;
+
+    // added to track bot/player roles correctly after swap
+    private Colour botColour = Colour.BLACK;
+    private Colour humanColour = Colour.WHITE;
+
     public Game() {
         startGame();
     }
@@ -26,6 +38,14 @@ public class Game {
         winner = null;
         rhombicStones = new Colour[10][10];
         committedLane = -1;
+        winningPath.clear();
+
+        // added to reset pie rule and role state on new game
+        pieRuleAvailable = false;
+        pieRuleHandled = false;
+        firstMoveDone = false;
+        botColour = Colour.BLACK;
+        humanColour = Colour.WHITE;
     }
 
     public Colour getCurrentPlayer() {
@@ -39,10 +59,44 @@ public class Game {
             currentPlayer = Colour.BLACK;
         }
     }
+
     public void applyPieRule() {
-        switchTurn();
+        if (!pieRuleAvailable || pieRuleHandled) return;
+
+        Colour temp = botColour;
+        botColour = humanColour;
+        humanColour = temp;
+
+        // keep currentPlayer unchanged, because the next colour to act
+        // after the first move is still WHITE
+        // after the swap, WHITE now belongs to the bot
+
+        committedLane = -1;
+        pieRuleHandled = true;
+        pieRuleAvailable = false;
+    }
+    // added so the ui can close pie rule state without owning it
+    public void declinePieRule() {
+        if (!pieRuleAvailable || pieRuleHandled) return;
+        pieRuleHandled = true;
+        pieRuleAvailable = false;
     }
 
+    public boolean isPieRuleAvailable() {
+        return pieRuleAvailable;
+    }
+
+    public boolean isPieRuleHandled() {
+        return pieRuleHandled;
+    }
+
+    public Colour getBotColour() {
+        return botColour;
+    }
+
+    public Colour getHumanColour() {
+        return humanColour;
+    }
 
     public boolean placeStone(int row, int col) {
 
@@ -50,6 +104,16 @@ public class Game {
 
         boolean success = board.placeStone(row, col, currentPlayer);
         if (!success) return false;
+
+        // added to make pie rule state part of the game logic
+        if (!firstMoveDone) {
+            firstMoveDone = true;
+            pieRuleAvailable = true;
+            pieRuleHandled = false;
+        } else {
+            pieRuleAvailable = false;
+            pieRuleHandled = true;
+        }
 
         if (currentPlayer == Colour.BLACK && blackWins()) {
             gameOver = true; winner = Colour.BLACK;
@@ -156,9 +220,6 @@ public class Game {
         return false;
     }
 
-    // store reference to rhombic tiles from ui
-    private Colour[][] rhombicStones;
-
     public void setRhombicStones(Colour[][] stones) { this.rhombicStones = stones; }
 
     public Colour[][] getRhombicStones() { return rhombicStones; }
@@ -189,6 +250,16 @@ public class Game {
         if (!backslash && !slash) return false;
 
         rhombicStones[row][col] = currentPlayer;
+
+        // added to make pie rule state part of the game logic
+        if (!firstMoveDone) {
+            firstMoveDone = true;
+            pieRuleAvailable = true;
+            pieRuleHandled = false;
+        } else {
+            pieRuleAvailable = false;
+            pieRuleHandled = true;
+        }
 
         if (currentPlayer == Colour.BLACK && blackWins()) {
             gameOver = true; winner = Colour.BLACK; calculateWinningPath(); return true;
@@ -614,7 +685,7 @@ public class Game {
         if (blockersA < blockersB) return new int[]{lanes[0], lanes[1]};
         if (blockersB < blockersA) return new int[]{lanes[1], lanes[0]};
 
-        // equal blockers: for BLACK prefer the higher column (rightward = more options)
+        // if equal blockers: for BLACK prefer the higher column (rightward = more options)
         // for WHITE prefer the lane closer to centre row
         if (botColour == Colour.BLACK) {
             // prefer higher lane index (further right column)

@@ -34,9 +34,6 @@ public class QuaxUI extends Application {
 
 
     // UI state
-    private boolean pieRuleAvailable  = false;
-    private boolean pieRuleHandled    = false;
-    private boolean firstMoveDone     = false;
     private String  errorMessage      = "";
 
     // Bot and path analysis
@@ -45,9 +42,6 @@ public class QuaxUI extends Application {
     private int     lastMoveRow       = -1;
     private int     lastMoveCol       = -1;
     private boolean lastMoveIsRhombic = false;
-
-    // Rhombic cell stones [row][col], row,col in [0..9]
-    private final Colour[][] rhombicStones = new Colour[10][10];
 
     // ── Pie rule button geometry (top-right corner) ───────────────────────────
     private static final double PIE_LABEL_X = 830;
@@ -80,7 +74,6 @@ public class QuaxUI extends Application {
 
             double mx = e.getX();
             double my = e.getY();
-            game.setRhombicStones(rhombicStones);
 
             // ── Start screen ──────────────────────────────────────────────────
             if (onStartScreen) {
@@ -90,8 +83,10 @@ public class QuaxUI extends Application {
                         && my >= BTN_VS_BOT_Y && my <= BTN_VS_BOT_Y + BTN_H) {
                     onStartScreen = false;
                     drawUI(gc, startX, startY, size, cut, stepX, stepY);
-                    // bot plays BLACK and goes first — trigger immediately
-                    triggerBotMove(gc, startX, startY, size, cut, stepX, stepY);
+                    // added to trigger the bot immediately because the bot starts as black
+                    if (vsBot && !game.isGameOver() && game.getCurrentPlayer() == game.getBotColour()) {
+                        triggerBotMove(gc, startX, startY, size, cut, stepX, stepY);
+                    }
                     return;
                 }
 
@@ -100,33 +95,32 @@ public class QuaxUI extends Application {
 
             // ── Block input while bot thinks, game is over, or it is bot's turn ──
             if (isBotThinking || game.isGameOver()) return;
-            if (vsBot && game.getCurrentPlayer() == Colour.BLACK) return;
+            // added to keep turn ownership in the game layer after pie rule swaps roles
+            if (vsBot && game.getCurrentPlayer() == game.getBotColour()) return;
 
             // ── Pie rule buttons ──────────────────────────────────────────────
-            if (pieRuleAvailable && !pieRuleHandled) {
+            if (game.isPieRuleAvailable() && !game.isPieRuleHandled()) {
 
                 // SWAP button
-                if (mx >= PIE_SWAP_X && mx <= PIE_SWAP_X + PIE_SWAP_W
-                        && my >= PIE_SWAP_Y && my <= PIE_SWAP_Y + PIE_SWAP_H) {
-                    game.getBoard().swapAllColours();
-                    game.switchTurn();
-                    pieRuleHandled   = true;
-                    pieRuleAvailable = false;
-                    errorMessage     = "";
-                    // after swap, turn is now BLACK (bot) — trigger the bot move
-                    handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
-                    return;
-                }
+            	if (mx >= PIE_SWAP_X && mx <= PIE_SWAP_X + PIE_SWAP_W
+            	        && my >= PIE_SWAP_Y && my <= PIE_SWAP_Y + PIE_SWAP_H) {
+            	    game.applyPieRule();
+            	    errorMessage = "";
+            	    handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
+            	    return;
+            	}
 
                 // CONTINUE button
                 if (mx >= PIE_CONT_X && mx <= PIE_CONT_X + PIE_CONT_W
                         && my >= PIE_CONT_Y && my <= PIE_CONT_Y + PIE_CONT_H) {
-                    pieRuleHandled   = true;
-                    pieRuleAvailable = false;
+                    game.declinePieRule();
                     errorMessage     = "";
                     drawUI(gc, startX, startY, size, cut, stepX, stepY);
                     return;
                 }
+
+                // added to stop normal board clicks while the pie rule choice is pending
+                return;
             }
 
             // ── Rhombic cell click ────────────────────────────────────────────
@@ -139,7 +133,6 @@ public class QuaxUI extends Application {
                     double ry = startY + (r + 1) * stepY;
                     if (Math.abs(mx - rx) + Math.abs(my - ry) <= rhombRadius) {
                         if (game.placeRhombus(r, c)) {
-                            if (pieRuleAvailable) { pieRuleAvailable = false; pieRuleHandled = true; }
                             recordMove(r, c, true);
                             handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
                         } else {
@@ -151,8 +144,6 @@ public class QuaxUI extends Application {
                 }
             }
             if (clickedRhomb) return;
-
-            game.setRhombicStones(rhombicStones);
 
             // ── Octagon cell click ────────────────────────────────────────────
             int col = (int) ((mx - startX) / stepX);
@@ -167,14 +158,6 @@ public class QuaxUI extends Application {
             } else {
                 errorMessage = "";
                 recordMove(row, col, false);
-
-                if (!firstMoveDone) {
-                    firstMoveDone    = true;
-                    pieRuleAvailable = true;
-                } else {
-                    pieRuleAvailable = false;
-                    pieRuleHandled   = true;
-                }
                 handleTurnEnd(gc, startX, startY, size, cut, stepX, stepY);
             }
 
@@ -259,8 +242,8 @@ public class QuaxUI extends Application {
 
         drawUI(gc, sx, sy, s, c, tx, ty);
 
-        // only auto-trigger bot in vs-bot mode when it is BLACK's turn (bot plays BLACK)
-        if (vsBot && !game.isGameOver() && game.getCurrentPlayer() == Colour.BLACK) {
+        // only auto-trigger bot in vs-bot mode when it is bot's turn
+        if (vsBot && !game.isGameOver() && game.getCurrentPlayer() == game.getBotColour()) {
             triggerBotMove(gc, sx, sy, s, c, tx, ty);
         }
     }
@@ -277,14 +260,6 @@ public class QuaxUI extends Application {
         pause.setOnFinished(event -> {
             makeBotMove();
             isBotThinking = false;
-
-            // if this was the bot's very first move, offer the pie rule to the human
-            if (!firstMoveDone && game.getCurrentPlayer() == Colour.WHITE) {
-                firstMoveDone    = true;
-                pieRuleAvailable = true;
-                pieRuleHandled   = false;
-            }
-
             handleTurnEnd(gc, sx, sy, s, c, tx, ty);
         });
         pause.play();
@@ -293,7 +268,12 @@ public class QuaxUI extends Application {
     private void makeBotMove() {
         int[] move = game.makeBotMove();
         if (move != null) {
-            recordMove(move[0], move[1], false);
+            // added so rhombic bot moves still highlight correctly
+            boolean rhombicMove = move[0] >= 0 && move[0] < 10 && move[1] >= 0 && move[1] < 10
+                    && game.getRhombicStones() != null
+                    && game.getRhombicStones()[move[0]][move[1]] == game.getBotColour()
+                    && game.getBoard().isCellEmpty(move[0], move[1]);
+            recordMove(move[0], move[1], rhombicMove);
         }
     }
 
@@ -338,12 +318,12 @@ public class QuaxUI extends Application {
         // ===== Rhombic stones =====
         for (int r = 0; r < ROWS - 1; r++) {
             for (int c = 0; c < COLS - 1; c++) {
-                if (rhombicStones[r][c] != null) {
+                if (game.getRhombicStones()[r][c] != null) {
                     double rx = startX + (c + 1) * stepX;
                     double ry = startY + (r + 1) * stepY;
                     boolean highlight = (lastMoveIsRhombic && lastMoveRow == r && lastMoveCol == c);
                     boolean isWinning = isPartOfWinningPath(r, c);
-                    drawRhombicStone(gc, rx, ry, rhombicStones[r][c], cut, highlight, isWinning);
+                    drawRhombicStone(gc, rx, ry, game.getRhombicStones()[r][c], cut, highlight, isWinning);
                 }
             }
         }
@@ -397,21 +377,21 @@ public class QuaxUI extends Application {
 
         // ===== Turn indicator =====
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-        String turnText;
+        String turnText = "";
         if (game.isGameOver()) {
             turnText = "GAME OVER";
         } else if (isBotThinking) {
             turnText = "Bot is thinking...";
         } else if (vsBot) {
-            // bot plays BLACK, human plays WHITE
-            turnText = game.getCurrentPlayer() == Colour.BLACK
-                    ? "Current turn: Bot (BLACK)"
-                    : "Current turn: User (WHITE)";
+            // added to show correct bot/player colours after pie rule swap
+            turnText = game.getCurrentPlayer() == game.getBotColour()
+                    ? "Current turn: Bot (" + game.getBotColour() + ")"
+                    : "Current turn: User (" + game.getHumanColour() + ")";
         }
         gc.fillText(turnText, 400, 120);
 
         // ===== Pie Rule UI =====
-        if (pieRuleAvailable && !pieRuleHandled && !game.isGameOver()) {
+        if (game.isPieRuleAvailable() && !game.isPieRuleHandled() && !game.isGameOver()) {
 
             gc.setFill(Color.BLACK);
             gc.setFont(Font.font("Arial", FontWeight.BOLD, 14));
