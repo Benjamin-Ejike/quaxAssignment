@@ -1,5 +1,5 @@
-//creates and manages the board
 
+//Represents the 11 x 11 Quax game board and handles stone placement + pie rule logic
 public class Board {
 
     private static final int SIZE = 11;
@@ -17,7 +17,6 @@ public class Board {
         return r >= 0 && r < SIZE && c >= 0 && c < SIZE;
     }
 
-    //get specific cell
     public Cell getCell(int r, int c) {
         if (r >= 0 && r < SIZE && c >= 0 && c < SIZE)
             return grid[r][c];
@@ -29,7 +28,7 @@ public class Board {
         return cell != null && cell.isEmpty();
     }
 
-    //place a stone only of its inside theboard and is empty
+
     public boolean placeStone(int r, int c, Colour color) {
         if (isCellEmpty(r, c)) {
             grid[r][c].setColour(color);
@@ -38,7 +37,7 @@ public class Board {
         return false;
     }
 
-    //Swap colour when pie rule is activated
+
     public void swapAllColours() {
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {

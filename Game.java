@@ -352,19 +352,14 @@ public class Game {
     // =========================================================================
 
     public int[] makeBotMove() {
-
-        // botColour is read fresh from currentPlayer every call.
-        // This means after pie rule swaps all stones, the bot correctly
-        // plays as whatever colour it currently IS — not what it was before.
+        // Use the current player so the bots still works correctly after pie rule
         Colour botColour   = currentPlayer;
         Colour humanColour = (botColour == Colour.BLACK) ? Colour.WHITE : Colour.BLACK;
 
-        // Priority 0a: place a rhombic tile if it wins the game immediately
+        // Priority 0: win or set up a win using rhombic tiles
         int[] rhombWin = findWinningRhombicMove(botColour);
         if (rhombWin != null) { placeRhombus(rhombWin[0], rhombWin[1]); return rhombWin; }
 
-        // Priority 0b: place a rhombic tile that creates an immediate stone win next move
-        // e.g. rhombic connects two chains, then placing one more stone wins
         int[] rhombSetup = findRhombicSetupMove(botColour);
         if (rhombSetup != null) { placeRhombus(rhombSetup[0], rhombSetup[1]); return rhombSetup; }
 
@@ -384,7 +379,7 @@ public class Game {
         int[] threatBlock = findThreatBlock(humanColour);
         if (threatBlock != null) { placeStone(threatBlock[0], threatBlock[1]); return threatBlock; }
 
-        // Priority 5: fallback — extend any existing friendly chain forward
+        // Priority 5: fallback — extend any existing bot chain
         int[] extension = findExtensionMove(botColour);
         if (extension != null) { placeStone(extension[0], extension[1]); return extension; }
 
@@ -395,20 +390,9 @@ public class Game {
     //  LANE-BASED ATTACK
     // -------------------------------------------------------------------------
 
-    /**
-     * Lane-based attack with diagonal detour and lane-switching.
-     *
-     * Step 1: Score all 11 lanes, pick the best one (most friendly, fewest blockers).
-     * Step 2: Walk the lane from the starting edge toward the goal.
-     *         - Empty cell → place there (continue straight).
-     *         - Human stone blocking → take a diagonal step into an adjacent lane,
-     *           then SWITCH to that new lane and continue straight from there.
-     *         - Own stone → already placed, skip forward.
-     *
-     * The key improvement: after a diagonal detour, activeLane updates to the
-     * new lane so subsequent moves continue straight in the detour lane rather
-     * than trying to return to the original blocked lane.
-     */
+    //Advances along a chosen lane towards its goal
+    //If blocked, switches to a nearby lane and continues forward
+
     private int[] findLaneAdvance(Colour botColour, Colour humanColour) {
         int size   = board.getSize();
         int centre = size / 2;
@@ -468,10 +452,7 @@ public class Game {
     //  BLOCK HUMAN THREAT
     // -------------------------------------------------------------------------
 
-    /**
-     * Finds the human's most dangerous chain and blocks its path.
-     * Searches multiple steps ahead so near-edge chains are still blocked.
-     */
+    // Blocks the human's most advanced chain toward their goal
     private int[] findThreatBlock(Colour humanColour) {
         int size            = board.getSize();
         int dangerThreshold = 2;
@@ -560,7 +541,7 @@ public class Game {
                 // check if a winning stone move now exists
                 int[] stoneWin = findWinningMove(colour);
 
-                // undo
+                // revert simulated move
                 rhombicStones[r][c] = null;
 
                 if (stoneWin != null) return new int[]{r, c};
@@ -569,8 +550,8 @@ public class Game {
         return null;
     }
 
-    // checks if placing a rhombic tile anywhere wins immediately
-    // checks both diagonal directions: \ (top-left to bottom-right) and / (top-right to bottom-left)
+
+    // Finds a rhombic move that sets up a winning stone on the next turn
     private int[] findWinningRhombicMove(Colour colour) {
         if (rhombicStones == null) return null;
         int size = board.getSize();
@@ -605,7 +586,7 @@ public class Game {
         return null;
     }
 
-    // checks if placing a stone for [colour] anywhere wins immediately
+    //  FInds a rhombic move that results in an immediate win
     private int[] findWinningMove(Colour colour) {
         int size = board.getSize();
         for (int r = 0; r < size; r++) {
@@ -620,7 +601,7 @@ public class Game {
         return null;
     }
 
-    // fallback: find any empty cell next to an existing friendly stone
+    // Extends an existing chain by placing near friendly stones
     private int[] findExtensionMove(Colour colour) {
         int size   = board.getSize();
         int centre = size / 2;
@@ -640,12 +621,11 @@ public class Game {
         return result;
     }
 
-    // returns true if the next cell directly ahead of the frontier is a human stone
-    // AND there is no empty cell anywhere ahead of the frontier
+    // Checks if a lane is fully blocked ahead of the bot's progress
     private boolean isLaneFullyBlocked(int lane, Colour botColour, Colour humanColour, int size) {
         if (lane < 0 || lane >= size) return true;
 
-        // find frontier: the furthest position the bot has reached in this lane
+        // Find frontier: the furthest position the bot has reached in this lane
         int frontier = 0;
         for (int pos = 0; pos < size; pos++) {
             Cell cell = (botColour == Colour.BLACK)
@@ -654,8 +634,7 @@ public class Game {
             if (cell != null && cell.getColor() == botColour) frontier = pos + 1;
         }
 
-        // lane is blocked only if there are NO empty cells ahead of the frontier
-        // a single human stone in the way is NOT enough — we can detour around it
+        // Count empty cells ahead to determine if the lane is blocked
         int emptyCellsAhead = 0;
         for (int pos = frontier; pos < size; pos++) {
             Cell cell = (botColour == Colour.BLACK)
@@ -664,17 +643,11 @@ public class Game {
             if (cell != null && cell.isEmpty()) emptyCellsAhead++;
         }
 
-        // only give up on a lane if more than half of remaining cells are blocked
         int totalAhead = size - frontier;
         return totalAhead > 0 && emptyCellsAhead == 0;
     }
 
-    // picks the better adjacent lane for a detour.
-    // Scores each lane on:
-    //   1. Fewer human blockers (most important — avoid crowded lanes)
-    //   2. Higher lane index for BLACK (prefer right/forward over left/backward)
-    //      Lower lane index for WHITE (prefer downward over upward — toward centre)
-    // Returns lanes sorted best first.
+    // Chooses the better adjacent lane for a detour based on blockers and position
     private int[] pickClearerLane(int[] lanes, Colour botColour, Colour humanColour, int size) {
         if (lanes.length < 2) return lanes;
 
@@ -685,31 +658,28 @@ public class Game {
         if (blockersA < blockersB) return new int[]{lanes[0], lanes[1]};
         if (blockersB < blockersA) return new int[]{lanes[1], lanes[0]};
 
-        // if equal blockers: for BLACK prefer the higher column (rightward = more options)
-        // for WHITE prefer the lane closer to centre row
+
         if (botColour == Colour.BLACK) {
             // prefer higher lane index (further right column)
             if (lanes[1] > lanes[0]) return new int[]{lanes[1], lanes[0]};
-        } else {
-            // WHITE: prefer lane closer to centre row (already done by sortByDistanceToCenter)
         }
 
         return lanes;
     }
 
-    // count human stones in a lane (col for BLACK, row for WHITE)
+    // Count human stones in a lane (col for BLACK, row for WHITE)
     private int countHumanInLane(int lane, Colour botColour, Colour humanColour, int size) {
         int count = 0;
         for (int pos = 0; pos < size; pos++) {
             Cell cell = (botColour == Colour.BLACK)
-                    ? board.getCell(pos, lane)   // BLACK: lane=col
-                    : board.getCell(lane, pos);  // WHITE: lane=row
+                    ? board.getCell(pos, lane)   // BLACK uses column as lane
+                    : board.getCell(lane, pos);  // WHITE uses row as lane
             if (cell != null && cell.getColor() == humanColour) count++;
         }
         return count;
     }
 
-    // returns lane options sorted by closeness to centre
+    // Returns lane options sorted by distance from the centre
     private int[] sortByDistanceToCenter(int laneA, int laneB, int centre, int size) {
         List<Integer> options = new ArrayList<>();
         if (laneA >= 0 && laneA < size) options.add(laneA);
@@ -720,7 +690,7 @@ public class Game {
         return result;
     }
 
-    // counts how many friendly stones are adjacent to (row, col)
+    // Counts adjacent friendly stones around the cell
     private int countFriendlyNeighbours(int row, int col, Colour colour) {
         int count = 0;
         int size  = board.getSize();

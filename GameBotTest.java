@@ -3,107 +3,75 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class GameBotTest {
 
-    /**
-     * Test: Bot should always make a move on an empty board.
-     * This ensures the bot logic is working and does not return null.
-     */
     @Test
     void botMakesMove_onEmptyBoard() {
         Game game = new Game();
 
         int[] move = game.makeBotMove();
 
-        // Bot should return a valid move (row, col)
         assertNotNull(move);
     }
 
-    /**
-     * Test: Bot prefers the central lane rather than edges.
-     *
-     * Instead of checking an exact position ,
-     * this test verifies that the bot chooses a move near the centre of the board.
-     * This reflects the bot's lane-based strategy for optimal positioning.
-     */
+
     @Test
     void botPrefersMiddleLane() {
         Game game = new Game();
 
         int[] move = game.makeBotMove();
 
-        // Bot should choose a valid move
         assertNotNull(move);
 
-        // Column should be near center (more realistic check)
         assertTrue(move[1] >= 4 && move[1] <= 6);
     }
 
-    /**
-     * Test: Bot takes a winning move when available.
-     * If the bot can win in one move, it should prioritise that move.
-     */
+
     @Test
     void botTakesWinningMove() {
         Game game = new Game();
 
-        // Set up board so BLACK (bot) is one move away from winning
         for (int i = 0; i < 10; i++) {
             game.getBoard().placeStone(i, 5, Colour.BLACK);
         }
 
-        // Bot makes move
         game.makeBotMove();
 
-        // After move, bot should have won
         assertTrue(game.blackWins());
     }
 
-    /**
-     * Test: Bot blocks the opponent's winning move.
-     * If WHITE is about to win, bot should block it.
-     */
+
     @Test
     void botBlocksOpponentWin() {
         Game game = new Game();
 
-        // Set up WHITE almost winning (left to right)
         for (int i = 0; i < 10; i++) {
             game.getBoard().placeStone(5, i, Colour.WHITE);
         }
 
         int[] move = game.makeBotMove();
 
-        // Bot should make a move to block
         assertNotNull(move);
 
-        // After move, WHITE should NOT have won
         assertFalse(game.whiteWins());
     }
 
-    /**
-     * Test: Bot uses rhombic tile when it leads to a winning setup.
-     * This ensures rhombus logic is being used by the bot.
-     */
+
     @Test
     void botUsesRhombusWhenBeneficial() {
         Game game = new Game();
 
-        // Initialise rhombic grid
         Colour[][] rhombus = new Colour[10][10];
         game.setRhombicStones(rhombus);
 
-        // Create diagonal opportunity for rhombus placement
         game.getBoard().placeStone(0, 0, Colour.BLACK);
         game.getBoard().placeStone(1, 1, Colour.BLACK);
 
         int[] move = game.makeBotMove();
 
-        // Bot should attempt a valid move (possibly rhombus)
         assertNotNull(move);
     }
 
     @Test
     void botMove_placesExactlyOneMove() {
-        // checks that the bot only places one move per turn
         Game game = new Game();
 
         game.makeBotMove();
@@ -114,7 +82,6 @@ public class GameBotTest {
 
     @Test
     void botMove_placesOnValidUnoccupiedTile() {
-        // checks that the bot does not overwrite existing stones
         Game game = new Game();
 
         assertTrue(game.placeStone(5, 5));
@@ -127,7 +94,6 @@ public class GameBotTest {
 
     @Test
     void integration_humanThenBotMoveUpdatesBoardCorrectly() {
-        // checks that human move followed by bot move updates correctly
         Game game = new Game();
 
         assertTrue(game.placeStone(0, 0));
@@ -142,7 +108,6 @@ public class GameBotTest {
 
     @Test
     void totalNumberOfMoves_increasesCorrectlyAfterEachTurn() {
-        // checks that moves increase correctly after each turn
         Game game = new Game();
 
         assertEquals(0, countStonesOnBoard(game) + countRhombusesOnBoard(game));
@@ -156,7 +121,6 @@ public class GameBotTest {
 
     @Test
     void botMove_doesNotCrashWhenBoardIsFullOfStones() {
-        // checks that the bot handles a full stone board safely
         Game game = new Game();
 
         int size = game.getBoard().getSize();
@@ -171,7 +135,6 @@ public class GameBotTest {
 
     @Test
     void botCanPlaceRhombusWhenValid() {
-        // checks that the bot can place a rhombus when a valid diagonal opportunity exists
         Game game = new Game();
 
         Colour[][] rhombus = new Colour[10][10];
@@ -190,7 +153,6 @@ public class GameBotTest {
 
     @Test
     void botRhombusMove_updatesRhombicBoardState() {
-        // checks that rhombus placement updates the board
         Game game = new Game();
 
         Colour[][] rhombus = new Colour[10][10];
@@ -208,7 +170,6 @@ public class GameBotTest {
 
     @Test
     void botSwitchesLaneWhenBlocked() {
-        // checks that the bot avoids a blocked central lane
         Game game = new Game();
 
         for (int r = 0; r < 11; r++) {
@@ -223,7 +184,6 @@ public class GameBotTest {
 
     @Test
     void botDoesNotBlockOpponentIfItCanWinImmediately() {
-        // checks that the bot prioritises its own winning move over blocking
         Game game = new Game();
 
         for (int i = 0; i < 10; i++) {
@@ -241,7 +201,6 @@ public class GameBotTest {
 
     @Test
     void botConsidersRhombusSetupMoves() {
-        // checks that the bot can use rhombus logic as part of its decision making
         Game game = new Game();
 
         Colour[][] rhombus = new Colour[10][10];
@@ -257,7 +216,6 @@ public class GameBotTest {
 
     @Test
     void botMove_returnsBoardPositionInsideBounds() {
-        // checks that returned bot move coordinates stay inside valid bounds
         Game game = new Game();
 
         int[] move = game.makeBotMove();
@@ -271,7 +229,6 @@ public class GameBotTest {
 
     @Test
     void botAsWhiteMakesValidMove() {
-        // checks that the bot can still make a valid move when white is the current player
         Game game = new Game();
 
         game.switchTurn();
@@ -284,7 +241,6 @@ public class GameBotTest {
         assertEquals(before + 1, after);
     }
 
-    // helper method to count stones
     private int countStonesOnBoard(Game game) {
         int count = 0;
         int size = game.getBoard().getSize();
@@ -299,7 +255,6 @@ public class GameBotTest {
         return count;
     }
 
-    // helper method to count rhombic tiles
     private int countRhombusesOnBoard(Game game) {
         int count = 0;
         Colour[][] rhombuses = game.getRhombicStones();

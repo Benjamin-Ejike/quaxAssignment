@@ -5,7 +5,6 @@ public class GameTest {
 
     @Test
     void constructor_startsWithBlackAndBoardReady() {
-        // checks that a new game creates a board and sets the first player to black
         Game game = new Game();
         assertNotNull(game.getBoard());
         assertEquals(Colour.BLACK, game.getCurrentPlayer());
@@ -13,7 +12,6 @@ public class GameTest {
 
     @Test
     void startGame_resetsPlayerAndBoard() {
-        // checks that startGame resets the board and sets the turn back to black
         Game game = new Game();
         game.placeStone(0, 0);
 
@@ -24,14 +22,12 @@ public class GameTest {
 
     @Test
     void getCurrentPlayer_returnsCurrentTurn() {
-        // checks that getCurrentPlayer returns the player whose turn it currently is
         Game game = new Game();
         assertEquals(Colour.BLACK, game.getCurrentPlayer());
     }
 
     @Test
     void switchTurn_togglesBetweenPlayers() {
-        // checks that switchTurn changes from black to white and back again
         Game game = new Game();
         assertEquals(Colour.BLACK, game.getCurrentPlayer());
 
@@ -44,7 +40,6 @@ public class GameTest {
 
     @Test
     void placeStone_placesStoneAndSwitchesTurn() {
-        // checks that a valid move places a stone on the board and switches the turn
         Game game = new Game();
 
         assertTrue(game.placeStone(3, 3));
@@ -54,7 +49,6 @@ public class GameTest {
 
     @Test
     void placeStone_failsOnOccupied_andDoesNotSwitchTurn() {
-        // checks that placing a stone on an occupied cell fails and does not change the turn
         Game game = new Game();
 
         assertTrue(game.placeStone(2, 2));
@@ -66,7 +60,6 @@ public class GameTest {
 
     @Test
     void placeStone_failsOutOfBounds() {
-        // checks that placing a stone outside the board boundaries returns false
         Game game = new Game();
         assertFalse(game.placeStone(-1, 0));
         assertFalse(game.placeStone(0, 11));
@@ -74,7 +67,6 @@ public class GameTest {
 
     @Test
     void getBoard_returnsSameBoardInstance() {
-        // checks that getBoard always returns the same board object, not a new one
         Game game = new Game();
         Board a = game.getBoard();
         Board b = game.getBoard();
@@ -83,7 +75,6 @@ public class GameTest {
 
     @Test
     void illegalMove_doesNotPlaceStone() {
-        // checks that an illegal move does not overwrite the existing stone
         Game game = new Game();
         game.placeStone(4, 4);
         boolean result = game.placeStone(4, 4);
@@ -94,7 +85,6 @@ public class GameTest {
 
     @Test
     void placeStone_twoValidMoves_placesBlackThenWhite() {
-        // checks that two valid moves place black then white and return turn to black
         Game game = new Game();
         assertTrue(game.placeStone(0, 0)); // BLACK
         assertTrue(game.placeStone(0, 1)); // WHITE
@@ -105,21 +95,19 @@ public class GameTest {
 
     @Test
     void blackWins_returnsFalseOnEmptyBoard() {
-        // checks that black has not won on an empty board
         Game game = new Game();
         assertFalse(game.blackWins());
     }
 
     @Test
     void whiteWins_returnsFalseOnEmptyBoard() {
-        // checks that white has not won on an empty board
         Game game = new Game();
         assertFalse(game.whiteWins());
     }
 
     @Test
     void blackWins_trueForStraightTopToBottomPath() {
-        // checks that black wins with a full vertical path
+
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -133,7 +121,6 @@ public class GameTest {
 
     @Test
     void whiteWins_trueForStraightLeftToRightPath() {
-        // checks that white wins with a full horizontal path
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -147,7 +134,6 @@ public class GameTest {
 
     @Test
     void blackWins_falseWhenPathIsBroken() {
-        // checks that black does not win if one part of the chain is missing
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -162,7 +148,6 @@ public class GameTest {
 
     @Test
     void whiteWins_falseWhenPathIsBroken() {
-        // checks that white does not win if one part of the chain is missing
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -177,7 +162,6 @@ public class GameTest {
 
     @Test
     void blackWins_trueUsingDiagonalRhombicConnections() {
-        // checks that black can win through diagonal connections when matching rhombic tiles exist
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -205,7 +189,6 @@ public class GameTest {
 
     @Test
     void whiteWins_trueUsingDiagonalRhombicConnections() {
-        // checks that white can win through diagonal connections when matching rhombic tiles exist
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -240,7 +223,6 @@ public class GameTest {
 
     @Test
     void blackWins_falseIfDiagonalRhombicTilesAreMissing() {
-        // checks that diagonal stones alone do not count without matching rhombic tiles
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -264,7 +246,6 @@ public class GameTest {
 
     @Test
     void placeStone_setsGameOverWhenBlackWins() {
-        // checks that placing the winning stone sets game over and winner
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -296,7 +277,6 @@ public class GameTest {
 
     @Test
     void placeStone_failsAfterGameOver() {
-        // checks that no more stones can be placed after game over
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -312,7 +292,6 @@ public class GameTest {
 
     @Test
     void placeRhombus_placesTileAndSwitchesTurn() {
-        // checks that a valid rhombic placement works and switches turn
         Game game = new Game();
         Colour[][] rhombs = new Colour[10][10];
         game.setRhombicStones(rhombs);
@@ -327,7 +306,6 @@ public class GameTest {
 
     @Test
     void placeRhombus_failsWhenOccupied() {
-        // checks that an occupied rhombic position cannot be used again
         Game game = new Game();
         Colour[][] rhombs = new Colour[10][10];
         game.setRhombicStones(rhombs);
@@ -341,7 +319,6 @@ public class GameTest {
 
     @Test
     void placeRhombus_failsOutOfBounds() {
-        // checks that invalid rhombic positions return false
         Game game = new Game();
         Colour[][] rhombs = new Colour[10][10];
         game.setRhombicStones(rhombs);
@@ -354,7 +331,6 @@ public class GameTest {
 
     @Test
     void placeRhombus_failsAfterGameOver() {
-        // checks that rhombic placement is blocked after game over
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -370,7 +346,6 @@ public class GameTest {
 
     @Test
     void singleStone_doesNotWin() {
-        // checks that one stone alone is not enough to win
         Game game = new Game();
         game.getBoard().placeStone(0, 0, Colour.BLACK);
 
@@ -379,7 +354,6 @@ public class GameTest {
 
     @Test
     void diagonalFails_ifRhombusWrongColour() {
-        // checks that diagonal links fail if the rhombic tile is the wrong colour
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -396,7 +370,6 @@ public class GameTest {
 
     @Test
     void applyPieRule_keepsExistingBoardColours() {
-        // checks that pie rule keeps existing board colours unchanged when applied
         Game game = new Game();
         game.getBoard().placeStone(0, 0, Colour.BLACK);
         game.applyPieRule();
@@ -406,7 +379,6 @@ public class GameTest {
 
     @Test
     void orthogonalConnection_windingPathWins() {
-        // checks a valid "snake-like" orthogonal connection from top to bottom
         Game game = new Game();
         Board board = game.getBoard();
 
@@ -427,7 +399,6 @@ public class GameTest {
 
     @Test
     void diagonalConnection_failsWithEmptyOrInvalidRhombus() {
-        // checks diagonal connection fails if there are no rhombic stones placed
         Game game = new Game();
         Board board = game.getBoard();
         Colour[][] rhombs = new Colour[10][10];

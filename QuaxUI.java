@@ -21,12 +21,10 @@ public class QuaxUI extends Application {
     // Game is always Human vs Bot
     private final boolean vsBot = true;
 
-    // true while the start screen is showing, false once a mode is chosen
     private boolean onStartScreen = true;
 
-    // ── Start screen button geometry ──────────────────────────────────────────
-    // Both buttons same size, centred symmetrically around x=500
-    // gap between buttons = 20px, so each starts at 500 - 20/2 - 220 = 270 and 500 + 10 = 510
+    // ── Start screen button geometry ─────────────────────────────────────────
+    // Start screen button position(centred layout)
     private static final double BTN_W        = 220;
     private static final double BTN_H        = 55;
     private static final double BTN_VS_BOT_X = 390;
@@ -83,25 +81,25 @@ public class QuaxUI extends Application {
                         && my >= BTN_VS_BOT_Y && my <= BTN_VS_BOT_Y + BTN_H) {
                     onStartScreen = false;
                     drawUI(gc, startX, startY, size, cut, stepX, stepY);
-                    // added to trigger the bot immediately because the bot starts as black
+                    // Trigger bot move immeediately when it starts
                     if (vsBot && !game.isGameOver() && game.getCurrentPlayer() == game.getBotColour()) {
                         triggerBotMove(gc, startX, startY, size, cut, stepX, stepY);
                     }
                     return;
                 }
 
-                return; // ignore clicks elsewhere on start screen
+                return;
             }
 
             // ── Block input while bot thinks, game is over, or it is bot's turn ──
             if (isBotThinking || game.isGameOver()) return;
-            // added to keep turn ownership in the game layer after pie rule swaps roles
+            // Prevent input when it is the bot's turn
             if (vsBot && game.getCurrentPlayer() == game.getBotColour()) return;
 
             // ── Pie rule buttons ──────────────────────────────────────────────
             if (game.isPieRuleAvailable() && !game.isPieRuleHandled()) {
 
-                // SWAP button
+                // Handle swap button click
             	if (mx >= PIE_SWAP_X && mx <= PIE_SWAP_X + PIE_SWAP_W
             	        && my >= PIE_SWAP_Y && my <= PIE_SWAP_Y + PIE_SWAP_H) {
             	    game.applyPieRule();
@@ -110,7 +108,7 @@ public class QuaxUI extends Application {
             	    return;
             	}
 
-                // CONTINUE button
+                // Handle continue button click
                 if (mx >= PIE_CONT_X && mx <= PIE_CONT_X + PIE_CONT_W
                         && my >= PIE_CONT_Y && my <= PIE_CONT_Y + PIE_CONT_H) {
                     game.declinePieRule();
@@ -119,11 +117,13 @@ public class QuaxUI extends Application {
                     return;
                 }
 
-                // added to stop normal board clicks while the pie rule choice is pending
+                // Block board input while the poe rule decision is pending
                 return;
             }
 
             // ── Rhombic cell click ────────────────────────────────────────────
+
+            // Detects clicks on rhombic tiles
             double  rhombRadius  = cut * 0.65;
             boolean clickedRhomb = false;
 
@@ -131,6 +131,7 @@ public class QuaxUI extends Application {
                 for (int c = 0; c < COLS - 1 && !clickedRhomb; c++) {
                     double rx = startX + (c + 1) * stepX;
                     double ry = startY + (r + 1) * stepY;
+                    //check if click is within rhombic tile area
                     if (Math.abs(mx - rx) + Math.abs(my - ry) <= rhombRadius) {
                         if (game.placeRhombus(r, c)) {
                             recordMove(r, c, true);
@@ -146,6 +147,8 @@ public class QuaxUI extends Application {
             if (clickedRhomb) return;
 
             // ── Octagon cell click ────────────────────────────────────────────
+
+            // Convert click position to board coordinates
             int col = (int) ((mx - startX) / stepX);
             int row = (int) ((my - startY) / stepY);
 
@@ -169,7 +172,7 @@ public class QuaxUI extends Application {
         stage.setScene(new Scene(root));
         stage.show();
 
-        // show the start screen first
+        // Display the start screen initially
         drawStartScreen(gc);
     }
 
@@ -179,26 +182,26 @@ public class QuaxUI extends Application {
 
     private void drawStartScreen(GraphicsContext gc) {
 
-        // dark background
+        // Dark background
         gc.setFill(Color.web("#1a1a2e"));
         gc.fillRect(0, 0, 1000, 950);
 
-        // title
+        // Title
         gc.setFill(Color.ORANGE);
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 72));
         gc.fillText(" QUAX", 370, 200);
 
-        // subtitle
+        // Subtitle
         gc.setFill(Color.web("#cccccc"));
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 22));
         gc.fillText("    Choose your game mode", 340, 260);
 
-        // decorative line
+        // Decorative line
         gc.setStroke(Color.ORANGE);
         gc.setLineWidth(2);
         gc.strokeLine(200, 290, 800, 290);
 
-        // rule reminder
+        // Rule reminder
         gc.setFill(Color.web("#aaaaaa"));
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 15));
         gc.fillText("           BLACK connects Top to Bottom     |     WHITE connects Left to Right", 215, 370);
@@ -215,7 +218,7 @@ public class QuaxUI extends Application {
 
 
 
-        // instruction
+        // Instruction
         gc.setFill(Color.web("#888888"));
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
         gc.fillText("          Click a button to start", 390, 530);
@@ -225,13 +228,14 @@ public class QuaxUI extends Application {
     //  TURN MANAGEMENT
     // =========================================================================
 
+    // Records the last move for UI highlighting and resets error state
     private void recordMove(int r, int c, boolean isRhombic) {
         lastMoveRow       = r;
         lastMoveCol       = c;
         lastMoveIsRhombic = isRhombic;
         errorMessage      = "";
     }
-
+    // Updates game state after a move and triggers the net turn if needed
     private void handleTurnEnd(GraphicsContext gc,
                                double sx, double sy,
                                double s,  double c,
@@ -242,12 +246,12 @@ public class QuaxUI extends Application {
 
         drawUI(gc, sx, sy, s, c, tx, ty);
 
-        // only auto-trigger bot in vs-bot mode when it is bot's turn
+        // Trigger bot move if it is the bot's turn
         if (vsBot && !game.isGameOver() && game.getCurrentPlayer() == game.getBotColour()) {
             triggerBotMove(gc, sx, sy, s, c, tx, ty);
         }
     }
-
+        // Delays and executes the bot move to allow UI updates
     private void triggerBotMove(GraphicsContext gc,
                                 double sx, double sy,
                                 double s,  double c,
@@ -255,7 +259,7 @@ public class QuaxUI extends Application {
         isBotThinking = true;
         drawUI(gc, sx, sy, s, c, tx, ty);
 
-        // short delay so "Bot is thinking..." renders before the move runs
+        // Delay to show "Bot is thinking..." before moving
         PauseTransition pause = new PauseTransition(Duration.seconds(0.8));
         pause.setOnFinished(event -> {
             makeBotMove();
@@ -265,10 +269,11 @@ public class QuaxUI extends Application {
         pause.play();
     }
 
+    // Executes the bot move and updates the last move for UI display
     private void makeBotMove() {
         int[] move = game.makeBotMove();
         if (move != null) {
-            // added so rhombic bot moves still highlight correctly
+            // Detect if the bot move is rhombic for correcting UI highlighting
             boolean rhombicMove = move[0] >= 0 && move[0] < 10 && move[1] >= 0 && move[1] < 10
                     && game.getRhombicStones() != null
                     && game.getRhombicStones()[move[0]][move[1]] == game.getBotColour()
@@ -443,42 +448,41 @@ public class QuaxUI extends Application {
     //  SHAPES
     // =========================================================================
 
+    // Draws a single octagonal board cell
     private void drawOctagon(GraphicsContext gc, double cx, double cy,
                              double size, double cornerCut) {
 
-        // 8 vertices clockwise from top-left of top edge
+        // Define octagon vertices
         double[] xPoints = {
-                cx - size + cornerCut,   // 0: top-left of top flat
-                cx + size - cornerCut,   // 1: top-right of top flat
-                cx + size,               // 2: top of right flat
-                cx + size,               // 3: bottom of right flat
-                cx + size - cornerCut,   // 4: bottom-right of bottom flat
-                cx - size + cornerCut,   // 5: bottom-left of bottom flat
-                cx - size,               // 6: bottom of left flat
-                cx - size                // 7: top of left flat
+                cx - size + cornerCut,
+                cx + size - cornerCut,
+                cx + size,
+                cx + size,
+                cx + size - cornerCut,
+                cx - size + cornerCut,
+                cx - size,
+                cx - size
         };
 
         double[] yPoints = {
-                cy - size,               // 0: top-left of top flat
-                cy - size,               // 1: top-right of top flat
-                cy - size + cornerCut,   // 2: top of right flat
-                cy + size - cornerCut,   // 3: bottom of right flat
-                cy + size,               // 4: bottom-right of bottom flat
-                cy + size,               // 5: bottom-left of bottom flat
-                cy + size - cornerCut,   // 6: bottom of left flat
-                cy - size + cornerCut    // 7: top of left flat
+                cy - size,
+                cy - size,
+                cy - size + cornerCut,
+                cy + size - cornerCut,
+                cy + size,
+                cy + size,
+                cy + size - cornerCut,
+                cy - size + cornerCut
         };
 
-        // fill with board colour
         gc.setFill(Color.ORANGE);
         gc.fillPolygon(xPoints, yPoints, 8);
 
-        // draw outline
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1);
         gc.strokePolygon(xPoints, yPoints, 8);
     }
-
+    // Draws a stone with optional highlight and winning effect
     private void drawStone(GraphicsContext gc, double cx, double cy,
                            Colour colour, boolean highlight, boolean isWinning) {
 
@@ -509,12 +513,11 @@ public class QuaxUI extends Application {
         gc.setLineWidth(1);
         gc.strokeOval(cx - radius, cy - radius, radius * 2, radius * 2);
     }
-
+    // Draws a rhombic stone with highlight and winning effect
     private void drawRhombicStone(GraphicsContext gc, double cx, double cy,
                                   Colour colour, double cut,
                                   boolean highlight, boolean isWinning) {
 
-        // circle fits snugly inside the diamond gap
         double radius = cut * 0.55;
 
         // winning glow

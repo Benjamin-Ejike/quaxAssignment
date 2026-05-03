@@ -6,8 +6,7 @@ public class CellTest {
 
     @Test
     void constructor_setsRowAndCol_andStartsEmpty() {
-        // checks that the constructor correctly sets row and column
-        // and that a new cell starts empty with no colour
+
         Cell cell = new Cell(4, 7);
 
         assertEquals(4, cell.getRow());
@@ -18,7 +17,7 @@ public class CellTest {
 
     @Test
     void setColour_setsColourAndMakesNotEmpty() {
-        // checks that setting a colour makes the cell no longer empty
+
         Cell cell = new Cell(0, 0);
 
         cell.setColour(Colour.BLACK);
@@ -29,7 +28,7 @@ public class CellTest {
 
     @Test
     void getRow_returnsCorrectRow() {
-        // checks that getRow returns the correct row value
+
         Cell cell = new Cell(9, 1);
 
         assertEquals(9, cell.getRow());
@@ -37,7 +36,7 @@ public class CellTest {
 
     @Test
     void getCol_returnsCorrectCol() {
-        // checks that getCol returns the correct column value
+
         Cell cell = new Cell(9, 1);
 
         assertEquals(1, cell.getCol());
@@ -45,8 +44,7 @@ public class CellTest {
 
     @Test
     void isEmpty_trueBeforeSet_falseAfterSet() {
-        // checks that isEmpty is true before setting a colour
-        // and false after setting a colour
+
         Cell cell = new Cell(2, 2);
 
         assertTrue(cell.isEmpty());
@@ -58,8 +56,7 @@ public class CellTest {
 
     @Test
     void getColor_returnsNullThenColour() {
-        // checks that getColor returns null before a colour is set
-        // and returns the correct colour after setting it
+
         Cell cell = new Cell(3, 3);
 
         assertNull(cell.getColor());

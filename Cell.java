@@ -1,5 +1,5 @@
-//represents one octagonal tile
 
+//Represents one octagonal tile on the board
 public class Cell {
 
     private int row;
@@ -14,11 +14,11 @@ public class Cell {
 
     public boolean isEmpty() {
         return colour == null;
-    } // if colour is empty ,returns true
+    }
 
     public void setColour(Colour colour) {
         this.colour = colour;
-    } // sets the colour to either black or white
+    }
 
     public Colour getColor() {
         return colour;
